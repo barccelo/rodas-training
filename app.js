@@ -1,4 +1,4 @@
-const state={tab:"home",routineDetail:null,routineFilter:"assigned",activeRoutineName:"Empuje A",startedAt:null,elapsed:0,workoutTimer:null,restTimer:null,restEndsAt:null,activeExercise:0,exercises:[
+const state={tab:"home",routineDetail:null,routineFilter:"assigned",historyMode:"overview",historySession:null,historyExercise:null,activeRoutineName:"Empuje A",startedAt:null,elapsed:0,workoutTimer:null,restTimer:null,restEndsAt:null,activeExercise:0,exercises:[
 {id:"bench",name:"Press banca",note:"Controlar la bajada · 2 s. Mantener escápulas retraídas.",sets:[["W","40 × 10",40,10,false,""],["1","70 × 8",72.5,8,false,""],["2","70 × 8",72.5,8,false,""],["3","70 × 7",72.5,8,false,""]]},
 {id:"ohp",name:"Press militar",note:"Evitar hiperextender la zona lumbar.",group:"A",groupType:"superset",sets:[["1","40 × 8",42.5,8,false,""],["2","40 × 8",42.5,8,false,""],["3","40 × 7",42.5,8,false,""]]},
 {id:"dips",name:"Fondos",note:"RIR objetivo: 2.",group:"A",groupType:"superset",sets:[["1","BW × 10",0,10,false,""],["2","BW × 9",0,10,false,""],["3","BW × 8",0,9,false,""]]}
@@ -31,6 +31,24 @@ const routineCatalog=[
 function cloneExercises(items){return JSON.parse(JSON.stringify(items))}
 function routineSetCount(r){return r.exercises.reduce(function(a,e){return a+e.sets.length},0)}
 function routineGroupCount(r){const gs={};r.exercises.forEach(function(e){if(e.group)gs[e.group]=1});return Object.keys(gs).length}
+const historySessions=[
+ {id:"s1",date:"18 sep",relative:"Ayer",name:"Tirón A",duration:"1 h 08 min",volume:8420,sets:21,exercises:6,pr:1,items:[["Dominadas","3 series","BW × 8"],["Remo con barra","3 series","67,5 × 10"],["Jalón al pecho","3 series","50 × 12"],["Curl inclinado","3 series","12 × 10"]]},
+ {id:"s2",date:"16 sep",relative:"Martes",name:"Empuje A",duration:"54 min",volume:7880,sets:20,exercises:7,pr:2,items:[["Press banca","4 series","72,5 × 8"],["Press militar","3 series","42,5 × 8"],["Fondos","3 series","BW × 10"],["Elevaciones laterales","3 series","10 × 15"]]},
+ {id:"s3",date:"15 sep",relative:"Lunes",name:"Piernas A",duration:"1 h 12 min",volume:11260,sets:24,exercises:7,pr:1,items:[["Sentadilla","4 series","102,5 × 6"],["Peso muerto rumano","3 series","82,5 × 8"],["Prensa","3 series","150 × 10"],["Gemelos","4 series","60 × 15"]]},
+ {id:"s4",date:"12 sep",relative:"12 sep",name:"Tirón A",duration:"1 h 02 min",volume:8100,sets:20,exercises:6,pr:0,items:[["Dominadas","3 series","BW × 7"],["Remo con barra","3 series","65 × 10"],["Curl inclinado","3 series","12 × 9"]]}
+];
+const exerciseHistory=[
+ {id:"bench",name:"Press banca",muscle:"Pecho",best:"75 × 6",bestDate:"9 sep",volume:"2.320 kg",change:"+6,8%",trend:[62,66,64,70,72,76],recent:[["16 sep","72,5 × 8","4 series"],["9 sep","75 × 6","4 series"],["2 sep","70 × 8","4 series"]]},
+ {id:"squat",name:"Sentadilla",muscle:"Piernas",best:"105 × 5",bestDate:"15 sep",volume:"3.240 kg",change:"+4,2%",trend:[74,72,78,79,82,86],recent:[["15 sep","102,5 × 6","4 series"],["8 sep","100 × 6","4 series"],["1 sep","97,5 × 6","4 series"]]},
+ {id:"row",name:"Remo con barra",muscle:"Espalda",best:"70 × 8",bestDate:"18 sep",volume:"2.025 kg",change:"+5,1%",trend:[58,61,63,64,67,71],recent:[["18 sep","67,5 × 10","3 series"],["12 sep","65 × 10","3 series"],["5 sep","65 × 9","3 series"]]},
+ {id:"ohp",name:"Press militar",muscle:"Hombros",best:"45 × 6",bestDate:"16 sep",volume:"1.020 kg",change:"+3,9%",trend:[55,57,58,61,62,65],recent:[["16 sep","42,5 × 8","3 series"],["9 sep","42,5 × 7","3 series"],["2 sep","40 × 8","3 series"]]}
+];
+const measurements=[
+ {label:"Peso",value:"78,4 kg",delta:"−0,8 kg",when:"Hoy",icon:"scale"},
+ {label:"Cintura",value:"82 cm",delta:"−1,5 cm",when:"15 sep",icon:"ruler"},
+ {label:"Pecho",value:"104 cm",delta:"+1 cm",when:"15 sep",icon:"ruler"},
+ {label:"Brazo",value:"38 cm",delta:"+0,5 cm",when:"15 sep",icon:"ruler"}
+];
 const STORAGE_KEY="rodas.activeWorkout.v1";
 function normalizeWorkoutData(){state.exercises.forEach(function(e){e.sets.forEach(function(s){if(s.length<6)s[5]=""})});const ohp=state.exercises.find(function(e){return e.id==="ohp"});const dips=state.exercises.find(function(e){return e.id==="dips"});if(ohp){ohp.group="A";ohp.groupType="superset"}if(dips){dips.group="A";dips.groupType="superset"}}
 function groupMembers(group){return state.exercises.map(function(e,i){return e.group===group?i:-1}).filter(function(i){return i>=0})}
@@ -176,14 +194,79 @@ state.exercises.map(exerciseCard).join("")+
 }
 
 function history(){
-const es=[["Ayer","Tirón A","1 h 08 min","8.420 kg","21","6"],["Martes","Empuje A","54 min","7.880 kg","20","7"],["Lunes","Piernas A","1 h 12 min","11.260 kg","24","7"],["12 sep","Tirón A","1 h 02 min","8.100 kg","20","6"]];
-return '<section class="page">'+topbar()+'<div class="eyebrow">Actividad</div><h1>Historial</h1>'+
-es.map(function(e){return '<article class="card history"><div class="history-top"><div><h3 style="margin:0 0 3px">'+e[1]+'</h3><div class="caption">'+e[0]+'</div></div><span class="caption">'+e[2]+'</span></div><div class="history-stats"><div class="history-stat"><strong>'+e[3]+'</strong><span>Volumen</span></div><div class="history-stat"><strong>'+e[4]+'</strong><span>Series</span></div><div class="history-stat"><strong>'+e[5]+'</strong><span>Ejercicios</span></div></div></article>'}).join("")+
-'</section>'}
+ if(state.historySession!==null)return historySessionDetail(state.historySession);
+ if(state.historyExercise!==null)return historyExerciseDetail(state.historyExercise);
+ return '<section class="page">'+topbar()+'<div class="eyebrow">Progreso</div><h1>Historial</h1>'+
+ '<div class="history-tabs">'+
+ ['overview','sessions','exercises','measures'].map(function(m){const labels={overview:"Resumen",sessions:"Sesiones",exercises:"Ejercicios",measures:"Medidas"};return '<button class="'+(state.historyMode===m?'active':'')+'" data-history-mode="'+m+'">'+labels[m]+'</button>'}).join("")+
+ '</div>'+
+ (state.historyMode==="overview"?historyOverview():state.historyMode==="sessions"?historySessionsView():state.historyMode==="exercises"?historyExercisesView():historyMeasuresView())+
+ '</section>'
+}
+
+function miniBars(values){
+ const max=Math.max.apply(null,values);
+ return '<div class="mini-bars">'+values.map(function(v,i){return '<span style="height:'+Math.max(14,Math.round(v/max*100))+'%" class="'+(i===values.length-1?'last':'')+'"></span>'}).join("")+'</div>'
+}
+
+function historyOverview(){
+ return '<div class="progress-hero-grid">'+
+ '<article class="card progress-kpi"><div class="progress-kpi-top"><span>'+ic("chart-no-axes-combined")+'</span><small>Esta semana</small></div><strong>18.420 kg</strong><p>Volumen total</p><em>↑ 8,4%</em></article>'+
+ '<article class="card progress-kpi"><div class="progress-kpi-top"><span>'+ic("calendar-check")+'</span><small>Últimos 7 días</small></div><strong>3</strong><p>Entrenamientos</p><em>75% del plan</em></article>'+
+ '</div>'+
+ '<div class="section"><div class="section-head"><h2>Volumen</h2><span class="caption">6 semanas</span></div><article class="card trend-card"><div class="trend-head"><div><strong>18.420 kg</strong><span>Semana actual</span></div><span class="delta">+8,4%</span></div>'+miniBars([58,64,61,72,78,84])+'<div class="trend-axis"><span>5 sem.</span><span>Hoy</span></div></article></div>'+
+ '<div class="section"><div class="section-head"><h2>Marcas recientes</h2><button class="link" data-history-mode="exercises">Ver ejercicios</button></div><article class="card record-list">'+
+ recordRow("trophy","Press banca","75 × 6","9 sep")+recordRow("trophy","Sentadilla","105 × 5","15 sep")+recordRow("trophy","Remo con barra","70 × 8","18 sep")+
+ '</article></div>'+
+ '<div class="section"><div class="section-head"><h2>Últimas sesiones</h2><button class="link" data-history-mode="sessions">Ver todas</button></div>'+historySessions.slice(0,2).map(sessionCard).join("")+'</div>'
+}
+
+function recordRow(icon,title,value,date){
+ return '<div class="record-row"><span class="record-icon">'+ic(icon)+'</span><span class="record-copy"><strong>'+title+'</strong><small>'+date+'</small></span><b>'+value+'</b></div>'
+}
+
+function sessionCard(s,i){
+ return '<button class="card session-card" data-history-session="'+historySessions.indexOf(s)+'"><div class="session-card-top"><div><span>'+s.relative+'</span><strong>'+s.name+'</strong></div><span>'+s.duration+'</span></div><div class="session-card-stats"><span><strong>'+s.volume.toLocaleString("es-ES")+' kg</strong><small>Volumen</small></span><span><strong>'+s.sets+'</strong><small>Series</small></span><span><strong>'+s.pr+'</strong><small>PR</small></span></div></button>'
+}
+
+function historySessionsView(){
+ return '<div class="history-summary-line"><span>'+historySessions.length+' sesiones recientes</span><strong>'+historySessions.reduce(function(a,s){return a+s.volume},0).toLocaleString("es-ES")+' kg</strong></div>'+
+ historySessions.map(sessionCard).join("")
+}
+
+function historyExercisesView(){
+ return '<div class="exercise-history-list">'+exerciseHistory.map(function(e,i){return '<button class="card exercise-history-card" data-history-exercise="'+i+'"><span class="exercise-history-icon">'+ic("dumbbell")+'</span><span><strong>'+e.name+'</strong><small>'+e.muscle+' · Mejor '+e.best+'</small></span><span class="exercise-history-change">'+e.change+'</span>'+ic("chevron-right")+'</button>'}).join("")+'</div>'
+}
+
+function historyMeasuresView(){
+ return '<div class="measure-grid">'+measurements.map(function(m){return '<article class="card measure-card"><span class="measure-icon">'+ic(m.icon)+'</span><small>'+m.label+'</small><strong>'+m.value+'</strong><em>'+m.delta+'</em><span>'+m.when+'</span></article>'}).join("")+'</div>'+
+ '<button class="primary add-measure-btn" id="add-measure">'+ic("plus")+' Registrar medida</button>'+
+ '<div class="section"><div class="section-head"><h2>Peso</h2><span class="caption">Últimas 6 semanas</span></div><article class="card trend-card"><div class="trend-head"><div><strong>78,4 kg</strong><span>Actual</span></div><span class="measure-down">−0,8 kg</span></div>'+miniBars([88,86,84,82,81,79])+'<div class="trend-axis"><span>12 ago</span><span>Hoy</span></div></article></div>'
+}
+
+function historySessionDetail(index){
+ const s=historySessions[index];
+ return '<section class="page history-detail-page"><div class="history-detail-head"><button class="icon-btn" data-close-history-detail>'+ic("chevron-left")+'</button><div><span>'+s.date+'</span><strong>'+s.name+'</strong></div><button class="icon-btn">'+ic("ellipsis")+'</button></div>'+
+ '<article class="card history-session-hero"><span class="history-complete">'+ic("check-circle-2")+' Completado</span><h1>'+s.name+'</h1><p>'+s.relative+' · '+s.duration+'</p><div class="history-detail-kpis"><div><strong>'+s.volume.toLocaleString("es-ES")+' kg</strong><span>Volumen</span></div><div><strong>'+s.sets+'</strong><span>Series</span></div><div><strong>'+s.pr+'</strong><span>PR</span></div></div></article>'+
+ '<div class="section"><div class="section-head"><h2>Ejercicios</h2><span class="caption">'+s.exercises+' total</span></div><article class="card history-exercise-lines">'+s.items.map(function(x){return '<div><span><strong>'+x[0]+'</strong><small>'+x[1]+'</small></span><b>'+x[2]+'</b></div>'}).join("")+'</article></div>'+
+ '<div class="section"><article class="card session-note-card">'+ic("message-square-text")+'<div><strong>Comentario</strong><span>Sesión completada según lo programado. Buen control general de cargas.</span></div></article></div></section>'
+}
+
+function historyExerciseDetail(index){
+ const e=exerciseHistory[index];
+ return '<section class="page history-detail-page"><div class="history-detail-head"><button class="icon-btn" data-close-exercise-detail>'+ic("chevron-left")+'</button><div><span>'+e.muscle+'</span><strong>'+e.name+'</strong></div><button class="icon-btn">'+ic("ellipsis")+'</button></div>'+
+ '<article class="card exercise-pr-hero"><span>'+ic("trophy")+' Mejor marca</span><h1>'+e.best+'</h1><p>'+e.bestDate+'</p><div class="history-detail-kpis"><div><strong>'+e.volume+'</strong><span>Volumen reciente</span></div><div><strong>'+e.change+'</strong><span>6 semanas</span></div><div><strong>'+e.recent.length+'</strong><span>Sesiones</span></div></div></article>'+
+ '<div class="section"><div class="section-head"><h2>Tendencia</h2><span class="caption">6 semanas</span></div><article class="card trend-card">'+miniBars(e.trend)+'<div class="trend-axis"><span>Antes</span><span>Ahora</span></div></article></div>'+
+ '<div class="section"><div class="section-head"><h2>Sesiones recientes</h2></div><article class="card recent-exercise-list">'+e.recent.map(function(r){return '<div><span><strong>'+r[0]+'</strong><small>'+r[2]+'</small></span><b>'+r[1]+'</b></div>'}).join("")+'</article></div></section>'
+}
 
 function profile(){
 return '<section class="page">'+topbar()+'<article class="card profile"><div class="profile-avatar">D</div><h2 style="margin:0 0 3px">David</h2><div class="muted">Entrenado</div><div class="profile-kpis"><div><strong>78,4 kg</strong><span>Peso</span></div><div><strong>6 sem.</strong><span>Racha</span></div><div><strong>43</strong><span>Sesiones</span></div></div></article>'+
-'<div class="section"><div class="section-head"><h2>Progreso</h2></div><article class="card list-card">'+row("chart-no-axes-combined","Estadísticas","Volumen, frecuencia y marcas")+row("ruler","Medidas corporales","Peso y perímetros")+row("image","Fotos de progreso","Comparaciones privadas")+'</article></div>'+
+'<div class="section"><div class="section-head"><h2>Progreso</h2></div><article class="card list-card">'+
+'<button class="list-row" data-profile-history="overview"><span class="list-icon">'+ic("chart-no-axes-combined")+'</span><span class="list-copy"><span class="list-title">Estadísticas</span><span class="list-sub">Volumen, frecuencia y marcas</span></span>'+ic("chevron-right")+'</button>'+
+'<button class="list-row" data-profile-history="measures"><span class="list-icon">'+ic("ruler")+'</span><span class="list-copy"><span class="list-title">Medidas corporales</span><span class="list-sub">Peso y perímetros</span></span>'+ic("chevron-right")+'</button>'+
+'<button class="list-row"><span class="list-icon">'+ic("image")+'</span><span class="list-copy"><span class="list-title">Fotos de progreso</span><span class="list-sub">Comparaciones privadas</span></span>'+ic("chevron-right")+'</button>'+
+'</article></div>'+
 '<div class="section"><div class="section-head"><h2>Cuenta</h2></div><article class="card list-card">'+row("user-round-cog","Entrenador","Carlos · conectado")+row("settings-2","Preferencias","Unidades, descanso y apariencia")+row("cloud","Sincronización","Datos guardados")+'</article></div></section>'}
 
 function tabbar(){
@@ -247,6 +330,13 @@ function bindGestures(){
 
 function events(){
 document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){state.tab=b.dataset.go;render()}});
+document.querySelectorAll("[data-history-mode]").forEach(function(b){b.onclick=function(){state.historyMode=b.dataset.historyMode;state.historySession=null;state.historyExercise=null;render()}});
+document.querySelectorAll("[data-history-session]").forEach(function(b){b.onclick=function(){state.historySession=+b.dataset.historySession;render()}});
+document.querySelectorAll("[data-history-exercise]").forEach(function(b){b.onclick=function(){state.historyExercise=+b.dataset.historyExercise;render()}});
+const closeHistory=document.querySelector("[data-close-history-detail]");if(closeHistory)closeHistory.onclick=function(){state.historySession=null;render()};
+const closeExerciseHistory=document.querySelector("[data-close-exercise-detail]");if(closeExerciseHistory)closeExerciseHistory.onclick=function(){state.historyExercise=null;render()};
+document.querySelectorAll("[data-profile-history]").forEach(function(b){b.onclick=function(){state.historyMode=b.dataset.profileHistory;state.historySession=null;state.historyExercise=null;state.tab="history";render()}});
+const addMeasure=document.getElementById("add-measure");if(addMeasure)addMeasure.onclick=function(){const value=prompt("Registrar peso (kg)","78.4");if(value){measurements[0].value=String(value).replace(".",",")+" kg";measurements[0].when="Ahora";render()}};
 const sh=document.getElementById("start-home");if(sh)sh.onclick=function(){startWorkout();state.tab="workout";render()};
 const sw=document.getElementById("start-workout");if(sw)sw.onclick=function(){startWorkout();render()};
 document.querySelectorAll("[data-start]").forEach(function(b){b.onclick=function(){startWorkout();state.tab="workout";render()}});
