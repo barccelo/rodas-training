@@ -1,4 +1,4 @@
-const state={tab:"home",routineDetail:null,routineFilter:"assigned",historyMode:"overview",historySession:null,historyExercise:null,activeRoutineName:"Empuje A",startedAt:null,elapsed:0,workoutTimer:null,restTimer:null,restEndsAt:null,activeExercise:0,exercises:[
+const state={tab:"home",routineDetail:null,routineFilter:"assigned",historyMode:"overview",historySession:null,historyExercise:null,profilePage:null,activeRoutineName:"Empuje A",startedAt:null,elapsed:0,workoutTimer:null,restTimer:null,restEndsAt:null,activeExercise:0,exercises:[
 {id:"bench",name:"Press banca",note:"Controlar la bajada · 2 s. Mantener escápulas retraídas.",sets:[["W","40 × 10",40,10,false,""],["1","70 × 8",72.5,8,false,""],["2","70 × 8",72.5,8,false,""],["3","70 × 7",72.5,8,false,""]]},
 {id:"ohp",name:"Press militar",note:"Evitar hiperextender la zona lumbar.",group:"A",groupType:"superset",sets:[["1","40 × 8",42.5,8,false,""],["2","40 × 8",42.5,8,false,""],["3","40 × 7",42.5,8,false,""]]},
 {id:"dips",name:"Fondos",note:"RIR objetivo: 2.",group:"A",groupType:"superset",sets:[["1","BW × 10",0,10,false,""],["2","BW × 9",0,10,false,""],["3","BW × 8",0,9,false,""]]}
@@ -51,6 +51,22 @@ const measurements=[
 ];
 const STORAGE_KEY="rodas.activeWorkout.v1";
 const HISTORY_KEY="rodas.history.v1";
+const PREFS_KEY="rodas.preferences.v1";
+const PHOTO_KEY="rodas.progressPhotos.v1";
+const preferences={units:"kg",restSeconds:90,appearance:"system",sounds:true,haptics:true};
+let progressPhotos=[
+ {id:"p1",date:"19 ago",view:"Frente",label:"Inicio",mock:"front"},
+ {id:"p2",date:"19 sep",view:"Frente",label:"Actual",mock:"front"}
+];
+function savePreferences(){try{localStorage.setItem(PREFS_KEY,JSON.stringify(preferences))}catch(e){}}
+function restorePreferences(){try{const raw=localStorage.getItem(PREFS_KEY);if(raw)Object.assign(preferences,JSON.parse(raw))}catch(e){}applyAppearance()}
+function savePhotos(){try{localStorage.setItem(PHOTO_KEY,JSON.stringify(progressPhotos))}catch(e){}}
+function restorePhotos(){try{const raw=localStorage.getItem(PHOTO_KEY);if(raw){const saved=JSON.parse(raw);if(Array.isArray(saved))progressPhotos=saved}}catch(e){}}
+function applyAppearance(){const root=document.documentElement;if(preferences.appearance==="system")delete root.dataset.theme;else root.dataset.theme=preferences.appearance}
+function unitLabel(){return preferences.units==="lb"?"lb":"kg"}
+function toDisplayWeight(kg){if(!kg)return "";return preferences.units==="lb"?Math.round(kg*2.20462*2)/2:kg}
+function fromDisplayWeight(v){return preferences.units==="lb"?v/2.20462:v}
+function displayMeasureWeight(text){if(preferences.units==="kg")return text;const n=parseFloat(String(text).replace(",","."));return Number.isFinite(n)?(Math.round(n*2.20462*10)/10).toString().replace(".",",")+" lb":text}
 function saveHistory(){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(historySessions))}catch(e){}}
 function restoreHistory(){try{const raw=localStorage.getItem(HISTORY_KEY);if(!raw)return;const saved=JSON.parse(raw);if(Array.isArray(saved)&&saved.length){historySessions.splice(0,historySessions.length);saved.forEach(function(s){historySessions.push(s)})}}catch(e){}}
 function completedVolume(){return state.exercises.reduce(function(total,e){return total+e.sets.reduce(function(a,s){return a+(s[4]?Number(s[2]||0)*Number(s[3]||0):0)},0)},0)}
@@ -170,12 +186,12 @@ return groupBanner(e,ei)+'<article class="card exercise-card '+(isActive?'exerci
 '<button class="exercise-menu">'+ic("ellipsis")+'</button></div>'+
 '<div class="exercise-quick"><button class="quick-chip">'+ic("history")+' Historial</button><button class="quick-chip">'+ic("message-square-text")+' Nota</button><button class="quick-chip" data-rest-now>'+ic("timer-reset")+' Descanso</button></div>'+(isActive?'<div class="gesture-hint">'+ic("move-vertical")+' Peso/reps · '+ic("move-horizontal")+' Series</div>':"")+
 '<div class="note">'+ic("message-square-text")+e.note+'</div>'+
-'<div class="sets"><div class="set-row head"><div>Serie</div><div>Anterior</div><div>kg</div><div>reps</div><div></div></div>'+
+'<div class="sets"><div class="set-row head"><div>Serie</div><div>Anterior</div><div>'+unitLabel()+'</div><div>reps</div><div></div></div>'+
 e.sets.map(function(s,si){
 return '<div class="set-block"><div class="set-row '+(s[4]?'set-done':'')+'" data-set-row data-ei="'+ei+'" data-si="'+si+'">'+
 '<button class="set-tag '+(s[0]==="W"?"warmup":s[0]==="F"?"failed":s[0]==="P"?"partial":"")+'" data-set-options data-ei="'+ei+'" data-si="'+si+'">'+s[0]+'</button>'+
 '<div class="previous">'+s[1]+'</div>'+
-'<input class="set-input" inputmode="decimal" value="'+(s[2]||"")+'" data-ei="'+ei+'" data-si="'+si+'" data-f="2" aria-label="Peso en kilogramos">'+
+'<input class="set-input" inputmode="decimal" value="'+toDisplayWeight(s[2])+'" data-ei="'+ei+'" data-si="'+si+'" data-f="2" aria-label="Peso">'+
 '<input class="set-input" inputmode="numeric" value="'+s[3]+'" data-ei="'+ei+'" data-si="'+si+'" data-f="3" aria-label="Repeticiones">'+
 '<button class="check '+(s[4]?"done":"")+'" data-check data-ei="'+ei+'" data-si="'+si+'" aria-label="Completar serie">'+ic("check")+'</button></div>'+(s[5]?'<button class="set-note-line" data-set-options data-ei="'+ei+'" data-si="'+si+'">'+ic("sticky-note")+s[5]+'</button>':"")+'</div>'
 }).join("")+
@@ -266,13 +282,90 @@ function historyExerciseDetail(index){
 }
 
 function profile(){
-return '<section class="page">'+topbar()+'<article class="card profile"><div class="profile-avatar">D</div><h2 style="margin:0 0 3px">David</h2><div class="muted">Entrenado</div><div class="profile-kpis"><div><strong>78,4 kg</strong><span>Peso</span></div><div><strong>6 sem.</strong><span>Racha</span></div><div><strong>43</strong><span>Sesiones</span></div></div></article>'+
-'<div class="section"><div class="section-head"><h2>Progreso</h2></div><article class="card list-card">'+
-'<button class="list-row" data-profile-history="overview"><span class="list-icon">'+ic("chart-no-axes-combined")+'</span><span class="list-copy"><span class="list-title">Estadísticas</span><span class="list-sub">Volumen, frecuencia y marcas</span></span>'+ic("chevron-right")+'</button>'+
-'<button class="list-row" data-profile-history="measures"><span class="list-icon">'+ic("ruler")+'</span><span class="list-copy"><span class="list-title">Medidas corporales</span><span class="list-sub">Peso y perímetros</span></span>'+ic("chevron-right")+'</button>'+
-'<button class="list-row"><span class="list-icon">'+ic("image")+'</span><span class="list-copy"><span class="list-title">Fotos de progreso</span><span class="list-sub">Comparaciones privadas</span></span>'+ic("chevron-right")+'</button>'+
-'</article></div>'+
-'<div class="section"><div class="section-head"><h2>Cuenta</h2></div><article class="card list-card">'+row("user-round-cog","Entrenador","Carlos · conectado")+row("settings-2","Preferencias","Unidades, descanso y apariencia")+row("cloud","Sincronización","Datos guardados")+'</article></div></section>'}
+ if(state.profilePage==="settings")return settingsView();
+ if(state.profilePage==="photos")return photosView();
+ if(state.profilePage==="trainer")return trainerView();
+ if(state.profilePage==="sync")return syncView();
+ const weight=displayMeasureWeight(measurements[0].value);
+ return '<section class="page">'+topbar()+
+ '<article class="card profile"><div class="profile-avatar">D</div><h2 style="margin:0 0 3px">David</h2><div class="muted">Entrenado</div><div class="profile-kpis"><div><strong>'+weight+'</strong><span>Peso</span></div><div><strong>6 sem.</strong><span>Racha</span></div><div><strong>'+historySessions.length+'</strong><span>Sesiones</span></div></div></article>'+
+ '<div class="section"><div class="section-head"><h2>Progreso</h2></div><article class="card list-card">'+
+ '<button class="list-row" data-profile-history="overview"><span class="list-icon">'+ic("chart-no-axes-combined")+'</span><span class="list-copy"><span class="list-title">Estadísticas</span><span class="list-sub">Volumen, frecuencia y marcas</span></span>'+ic("chevron-right")+'</button>'+
+ '<button class="list-row" data-profile-history="measures"><span class="list-icon">'+ic("ruler")+'</span><span class="list-copy"><span class="list-title">Medidas corporales</span><span class="list-sub">Peso y perímetros</span></span>'+ic("chevron-right")+'</button>'+
+ '<button class="list-row" data-profile-page="photos"><span class="list-icon">'+ic("image")+'</span><span class="list-copy"><span class="list-title">Fotos de progreso</span><span class="list-sub">Comparaciones privadas</span></span>'+ic("chevron-right")+'</button>'+
+ '</article></div>'+
+ '<div class="section"><div class="section-head"><h2>Cuenta</h2></div><article class="card list-card">'+
+ '<button class="list-row" data-profile-page="trainer"><span class="list-icon">'+ic("user-round-cog")+'</span><span class="list-copy"><span class="list-title">Entrenador</span><span class="list-sub">Carlos · conectado</span></span>'+ic("chevron-right")+'</button>'+
+ '<button class="list-row" data-profile-page="settings"><span class="list-icon">'+ic("settings-2")+'</span><span class="list-copy"><span class="list-title">Preferencias</span><span class="list-sub">'+unitLabel()+' · '+preferences.restSeconds+' s · '+appearanceLabel()+'</span></span>'+ic("chevron-right")+'</button>'+
+ '<button class="list-row" data-profile-page="sync"><span class="list-icon">'+ic("cloud")+'</span><span class="list-copy"><span class="list-title">Sincronización</span><span class="list-sub">Datos guardados en este dispositivo</span></span>'+ic("chevron-right")+'</button>'+
+ '</article></div></section>'
+}
+
+function appearanceLabel(){return preferences.appearance==="dark"?"Oscuro":preferences.appearance==="light"?"Claro":"Sistema"}
+function profileSubhead(title,eyebrow){return '<div class="profile-subhead"><button class="icon-btn" data-profile-back>'+ic("chevron-left")+'</button><div><span>'+eyebrow+'</span><strong>'+title+'</strong></div><span></span></div>'}
+
+function settingsView(){
+ return '<section class="page">'+profileSubhead("Preferencias","Perfil")+
+ '<div class="settings-section"><h2>Entrenamiento</h2><article class="card settings-card">'+
+ settingSegment("Unidades","Peso mostrado",["kg","lb"],preferences.units,"units")+
+ settingSegment("Descanso","Tiempo predeterminado",["60","90","120","180"],String(preferences.restSeconds),"rest")+
+ '</article></div>'+
+ '<div class="settings-section"><h2>Apariencia</h2><article class="card settings-card">'+
+ settingSegment("Tema","Interfaz de la app",["system","light","dark"],preferences.appearance,"appearance")+
+ '</article></div>'+
+ '<div class="settings-section"><h2>Respuesta</h2><article class="card settings-card">'+
+ settingToggle("Sonidos","Avisos al completar descanso","sounds",preferences.sounds)+
+ settingToggle("Respuesta háptica","Confirmaciones y gestos","haptics",preferences.haptics)+
+ '</article></div>'+
+ '<div class="settings-note">'+ic("info")+' Los cambios se aplican inmediatamente y permanecen en este dispositivo.</div>'+
+ '</section>'
+}
+
+function settingSegment(title,subtitle,options,current,key){
+ const names={system:"Sistema",light:"Claro",dark:"Oscuro","60":"60 s","90":"90 s","120":"2 min","180":"3 min",kg:"kg",lb:"lb"};
+ return '<div class="setting-row"><div><strong>'+title+'</strong><span>'+subtitle+'</span></div><div class="setting-segment">'+options.map(function(o){return '<button class="'+(String(current)===String(o)?'active':'')+'" data-setting="'+key+'" data-value="'+o+'">'+(names[o]||o)+'</button>'}).join("")+'</div></div>'
+}
+function settingToggle(title,subtitle,key,on){
+ return '<div class="setting-row toggle-row"><div><strong>'+title+'</strong><span>'+subtitle+'</span></div><button class="ios-toggle '+(on?'on':'')+'" data-toggle-setting="'+key+'" aria-label="'+title+'"><span></span></button></div>'
+}
+
+function photosView(){
+ const current=progressPhotos[progressPhotos.length-1],first=progressPhotos[0];
+ return '<section class="page">'+profileSubhead("Fotos de progreso","Progreso")+
+ '<article class="card photo-compare-card"><div class="photo-compare-head"><div><strong>Comparación</strong><span>'+first.date+' → '+current.date+'</span></div><button class="link" id="swap-photo-view">Frente</button></div>'+
+ '<div class="photo-compare-grid">'+photoTile(first)+photoTile(current)+'</div></article>'+
+ '<button class="primary photo-add-btn" id="add-progress-photo">'+ic("camera")+' Agregar foto</button>'+
+ '<input id="progress-photo-input" type="file" accept="image/*" hidden>'+
+ '<div class="photo-privacy">'+ic("lock")+' <span><strong>Privadas por defecto</strong><br>Las fotos solo se muestran en tu perfil de progreso.</span></div>'+
+ '<div class="section"><div class="section-head"><h2>Registro</h2><span class="caption">'+progressPhotos.length+' fotos</span></div><div class="photo-timeline">'+progressPhotos.slice().reverse().map(function(p,i){return '<article class="card photo-history-item">'+photoThumb(p)+'<div><strong>'+p.date+'</strong><span>'+p.view+' · '+p.label+'</span></div><button class="icon-btn" data-delete-photo="'+(progressPhotos.length-1-i)+'">'+ic("ellipsis")+'</button></article>'}).join("")+'</div></div>'+
+ '</section>'
+}
+function photoTile(p){return '<div class="photo-tile">'+photoThumb(p)+'<div><strong>'+p.label+'</strong><span>'+p.date+'</span></div></div>'}
+function photoThumb(p){return p.data?'<div class="photo-thumb has-photo" style="background-image:url('+p.data+')"></div>':'<div class="photo-thumb mock-photo '+(p.mock||"front")+'"><span></span></div>'}
+
+function trainerView(){
+ return '<section class="page">'+profileSubhead("Entrenador","Cuenta")+
+ '<article class="card trainer-card"><div class="trainer-avatar">C</div><div><h2>Carlos</h2><span>Entrenador conectado</span></div><span class="connected-dot"></span></article>'+
+ '<div class="section"><article class="card list-card">'+
+ '<div class="profile-info-row"><span>Rutina activa</span><strong>Empuje / Tirón / Piernas</strong></div>'+
+ '<div class="profile-info-row"><span>Último ajuste</span><strong>Hoy</strong></div>'+
+ '<div class="profile-info-row"><span>Comentarios pendientes</span><strong>1</strong></div>'+
+ '</article></div>'+
+ '<div class="section"><article class="card trainer-message">'+ic("message-circle")+'<div><strong>Última indicación</strong><span>Controla la bajada en press banca durante 2 segundos.</span></div></article></div>'+
+ '</section>'
+}
+
+function syncView(){
+ return '<section class="page">'+profileSubhead("Sincronización","Cuenta")+
+ '<article class="card sync-hero"><span class="sync-icon">'+ic("cloud-check")+'</span><h2>Datos guardados</h2><p>Tu sesión activa, historial, preferencias y cambios locales permanecen en este dispositivo.</p><div class="sync-status"><span></span>Sin cambios pendientes</div></article>'+
+ '<div class="section"><article class="card list-card">'+
+ '<div class="profile-info-row"><span>Última actualización</span><strong>Ahora</strong></div>'+
+ '<div class="profile-info-row"><span>Entrenamiento activo</span><strong>'+(state.startedAt?"Guardado":"Ninguno")+'</strong></div>'+
+ '<div class="profile-info-row"><span>Sesiones</span><strong>'+historySessions.length+'</strong></div>'+
+ '</article></div>'+
+ '<div class="settings-note">'+ic("info")+' La sincronización entre dispositivos se conectará cuando integremos el backend.</div>'+
+ '</section>'
+}
 
 function tabbar(){
 const nav=document.getElementById("tabbar");
@@ -329,7 +422,7 @@ clearRest();saveWorkout();render()
 function openSetNoteEditor(ei,si){const set=state.exercises[ei].sets[si],exercise=state.exercises[ei];document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="note-sheet-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">'+exercise.name+' · Serie '+set[0]+'</div><h2>Nota de la serie</h2></div><button class="icon-btn" id="close-note-sheet">'+ic("x")+'</button></div><textarea id="set-note-text" class="note-editor" placeholder="Escribe una indicación o comentario…">'+(set[5]||"")+'</textarea><div class="note-sheet-actions"><button class="secondary" id="clear-set-note">Limpiar</button><button class="primary" id="save-set-note">Guardar</button></div></div></div>';if(window.lucide)lucide.createIcons();document.getElementById("close-note-sheet").onclick=clearRest;document.getElementById("note-sheet-bg").onclick=function(ev){if(ev.target.id==="note-sheet-bg")clearRest()};document.getElementById("clear-set-note").onclick=function(){document.getElementById("set-note-text").value=""};document.getElementById("save-set-note").onclick=function(){set[5]=document.getElementById("set-note-text").value.trim();saveWorkout();clearRest();render()}}
 
 function bindGestures(){
- document.querySelectorAll(".set-input").forEach(function(inp){let y=0;inp.addEventListener("pointerdown",function(ev){y=ev.clientY;inp.setPointerCapture&&inp.setPointerCapture(ev.pointerId)});inp.addEventListener("pointerup",function(ev){const dy=ev.clientY-y;if(Math.abs(dy)<28)return;const ei=+inp.dataset.ei,si=+inp.dataset.si,f=+inp.dataset.f;const set=state.exercises[ei].sets[si];const step=f===2?2.5:1;let value=Number(set[f]||0)+(dy<0?step:-step);if(value<0)value=0;if(f===3)value=Math.round(value);set[f]=value;inp.value=value||"";saveWorkout();inp.classList.add("gesture-change");setTimeout(function(){inp.classList.remove("gesture-change")},280)})});
+ document.querySelectorAll(".set-input").forEach(function(inp){let y=0;inp.addEventListener("pointerdown",function(ev){y=ev.clientY;inp.setPointerCapture&&inp.setPointerCapture(ev.pointerId)});inp.addEventListener("pointerup",function(ev){const dy=ev.clientY-y;if(Math.abs(dy)<28)return;const ei=+inp.dataset.ei,si=+inp.dataset.si,f=+inp.dataset.f;const set=state.exercises[ei].sets[si];const step=f===2?(preferences.units==="lb"?5/2.20462:2.5):1;let value=Number(set[f]||0)+(dy<0?step:-step);if(value<0)value=0;if(f===3)value=Math.round(value);set[f]=value;inp.value=f===2?toDisplayWeight(value):(value||"");saveWorkout();inp.classList.add("gesture-change");setTimeout(function(){inp.classList.remove("gesture-change")},280)})});
  document.querySelectorAll("[data-set-row]").forEach(function(row){let x=0,y=0;row.addEventListener("pointerdown",function(ev){if(ev.target.closest("input,button"))return;x=ev.clientX;y=ev.clientY});row.addEventListener("pointerup",function(ev){if(!x)return;const dx=ev.clientX-x,dy=ev.clientY-y;x=0;if(Math.abs(dx)<52||Math.abs(dx)<Math.abs(dy))return;const ei=+row.dataset.ei,si=+row.dataset.si;const max=state.exercises[ei].sets.length-1;const next=Math.max(0,Math.min(max,si+(dx<0?1:-1)));if(next!==si)focusSet(ei,next)})})
 }
 
@@ -341,6 +434,12 @@ document.querySelectorAll("[data-history-exercise]").forEach(function(b){b.oncli
 const closeHistory=document.querySelector("[data-close-history-detail]");if(closeHistory)closeHistory.onclick=function(){state.historySession=null;render()};
 const closeExerciseHistory=document.querySelector("[data-close-exercise-detail]");if(closeExerciseHistory)closeExerciseHistory.onclick=function(){state.historyExercise=null;render()};
 document.querySelectorAll("[data-profile-history]").forEach(function(b){b.onclick=function(){state.historyMode=b.dataset.profileHistory;state.historySession=null;state.historyExercise=null;state.tab="history";render()}});
+document.querySelectorAll("[data-profile-page]").forEach(function(b){b.onclick=function(){state.profilePage=b.dataset.profilePage;render()}});
+const profileBack=document.querySelector("[data-profile-back]");if(profileBack)profileBack.onclick=function(){state.profilePage=null;render()};
+document.querySelectorAll("[data-setting]").forEach(function(b){b.onclick=function(){const key=b.dataset.setting,val=b.dataset.value;if(key==="units")preferences.units=val;if(key==="rest")preferences.restSeconds=Number(val);if(key==="appearance"){preferences.appearance=val;applyAppearance()}savePreferences();render()}});
+document.querySelectorAll("[data-toggle-setting]").forEach(function(b){b.onclick=function(){const key=b.dataset.toggleSetting;preferences[key]=!preferences[key];savePreferences();render()}});
+const addPhoto=document.getElementById("add-progress-photo");const photoInput=document.getElementById("progress-photo-input");if(addPhoto&&photoInput){addPhoto.onclick=function(){photoInput.click()};photoInput.onchange=function(){const file=photoInput.files&&photoInput.files[0];if(!file)return;const reader=new FileReader();reader.onload=function(){progressPhotos.push({id:"local-"+Date.now(),date:new Intl.DateTimeFormat("es-ES",{day:"numeric",month:"short"}).format(new Date()),view:"Frente",label:"Nueva",data:reader.result});savePhotos();render()};reader.readAsDataURL(file)}}
+document.querySelectorAll("[data-delete-photo]").forEach(function(b){b.onclick=function(){const i=+b.dataset.deletePhoto;if(progressPhotos.length<=1)return;if(confirm("¿Eliminar esta foto de progreso?")){progressPhotos.splice(i,1);savePhotos();render()}}});
 const addMeasure=document.getElementById("add-measure");if(addMeasure)addMeasure.onclick=function(){const value=prompt("Registrar peso (kg)","78.4");if(value){measurements[0].value=String(value).replace(".",",")+" kg";measurements[0].when="Ahora";render()}};
 const sh=document.getElementById("start-home");if(sh)sh.onclick=function(){startWorkout();state.tab="workout";render()};
 const sw=document.getElementById("start-workout");if(sw)sw.onclick=function(){startWorkout();render()};
@@ -352,8 +451,8 @@ document.querySelectorAll("[data-add-routine-exercise]").forEach(function(b){b.o
 const closeRoutine=document.querySelector("[data-close-routine]");if(closeRoutine)closeRoutine.onclick=function(){state.routineDetail=null;render()};
 document.querySelectorAll("[data-move-exercise]").forEach(function(b){b.onclick=function(){const p=b.dataset.moveExercise.split(":").map(Number),ri=p[0],ei=p[1],dir=p[2],arr=routineCatalog[ri].exercises,next=ei+dir;if(next<0||next>=arr.length)return;const tmp=arr[ei];arr[ei]=arr[next];arr[next]=tmp;render()}});
 document.querySelectorAll("[data-edit-routine-exercise]").forEach(function(b){b.onclick=function(){const p=b.dataset.editRoutineExercise.split(":").map(Number);openRoutineExerciseSheet(p[0],p[1])}});
-document.querySelectorAll("[data-check]").forEach(function(b){b.onclick=function(){const e=+b.dataset.ei,s=+b.dataset.si;const set=state.exercises[e].sets[s];set[4]=!set[4];if(set[4]){const exercise=state.exercises[e];if(exercise.group){const target=nextGroupTarget(e);state.activeExercise=target===null?e:target;const members=groupMembers(exercise.group);const atEnd=members[members.length-1]===e;if(atEnd)rest(90)}else{const exerciseDone=exercise.sets.every(function(x){return x[4]});if(exerciseDone&&e<state.exercises.length-1)state.activeExercise=e+1;rest(90)}}saveWorkout();render()}});
-document.querySelectorAll(".set-input").forEach(function(inp){inp.onchange=function(){const v=Number(inp.value.replace(",","."));state.exercises[+inp.dataset.ei].sets[+inp.dataset.si][+inp.dataset.f]=Number.isFinite(v)?v:0;saveWorkout()}});
+document.querySelectorAll("[data-check]").forEach(function(b){b.onclick=function(){const e=+b.dataset.ei,s=+b.dataset.si;const set=state.exercises[e].sets[s];set[4]=!set[4];if(set[4]){const exercise=state.exercises[e];if(exercise.group){const target=nextGroupTarget(e);state.activeExercise=target===null?e:target;const members=groupMembers(exercise.group);const atEnd=members[members.length-1]===e;if(atEnd)rest(preferences.restSeconds)}else{const exerciseDone=exercise.sets.every(function(x){return x[4]});if(exerciseDone&&e<state.exercises.length-1)state.activeExercise=e+1;rest(preferences.restSeconds)}}saveWorkout();render()}});
+document.querySelectorAll(".set-input").forEach(function(inp){inp.onchange=function(){const v=Number(inp.value.replace(",",".")),f=+inp.dataset.f;let stored=Number.isFinite(v)?v:0;if(f===2)stored=fromDisplayWeight(stored);state.exercises[+inp.dataset.ei].sets[+inp.dataset.si][f]=stored;saveWorkout()}});
 document.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){const e=+b.dataset.add,sets=state.exercises[e].sets,last=sets[sets.length-1];sets.push([String(sets.length+1),"—",last[2],last[3],false]);saveWorkout();render()}});
 document.querySelectorAll("[data-exercise-nav]").forEach(function(b){
 b.onclick=function(){
@@ -363,7 +462,7 @@ render();
 requestAnimationFrame(function(){const el=document.getElementById("exercise-"+next);if(el)el.scrollIntoView({behavior:"smooth",block:"start"})})
 }});
 const jump=document.querySelector("[data-jump-active]");if(jump)jump.onclick=function(){const el=document.getElementById("exercise-"+state.activeExercise);if(el)el.scrollIntoView({behavior:"smooth",block:"start"})};
-document.querySelectorAll("[data-rest-now]").forEach(function(b){b.onclick=function(){rest(90)}});
+document.querySelectorAll("[data-rest-now]").forEach(function(b){b.onclick=function(){rest(preferences.restSeconds)}});
 document.querySelectorAll("[data-set-options]").forEach(function(b){b.onclick=function(){openSetSheet(+b.dataset.ei,+b.dataset.si)}});
 const f=document.getElementById("finish");if(f)f.onclick=function(){if(confirm("¿Finalizar este entrenamiento?")){addCompletedSession();clearInterval(state.workoutTimer);state.startedAt=null;state.elapsed=0;state.activeExercise=0;state.exercises.forEach(function(e){e.sets.forEach(function(s){s[4]=false})});clearSavedWorkout();state.historyMode="sessions";state.tab="history";render()}}
 }
@@ -375,5 +474,7 @@ tabbar();events();bindGestures();if(window.lucide)lucide.createIcons()
 }
 normalizeWorkoutData();
 restoreHistory();
+restorePreferences();
+restorePhotos();
 restoreWorkout();
 render();
