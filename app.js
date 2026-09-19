@@ -50,6 +50,11 @@ const measurements=[
  {label:"Brazo",value:"38 cm",delta:"+0,5 cm",when:"15 sep",icon:"ruler"}
 ];
 const STORAGE_KEY="rodas.activeWorkout.v1";
+const HISTORY_KEY="rodas.history.v1";
+function saveHistory(){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(historySessions))}catch(e){}}
+function restoreHistory(){try{const raw=localStorage.getItem(HISTORY_KEY);if(!raw)return;const saved=JSON.parse(raw);if(Array.isArray(saved)&&saved.length){historySessions.splice(0,historySessions.length);saved.forEach(function(s){historySessions.push(s)})}}catch(e){}}
+function completedVolume(){return state.exercises.reduce(function(total,e){return total+e.sets.reduce(function(a,s){return a+(s[4]?Number(s[2]||0)*Number(s[3]||0):0)},0)},0)}
+function addCompletedSession(){const completed=doneSets(),volume=Math.round(completedVolume()),items=state.exercises.map(function(e){const done=e.sets.filter(function(s){return s[4]});const best=done.reduce(function(best,s){const score=Number(s[2]||0)*Number(s[3]||0);return !best||score>best.score?{score:score,label:(s[2]?String(s[2]).replace(".",","):"BW")+" × "+s[3]}:best},null);return [e.name,done.length+" series",best?best.label:"—"]});historySessions.unshift({id:"local-"+Date.now(),date:new Intl.DateTimeFormat("es-ES",{day:"numeric",month:"short"}).format(new Date()),relative:"Ahora",name:state.activeRoutineName,duration:fmt(state.elapsed).replace(/^00:/,""),volume:volume,sets:completed,exercises:state.exercises.length,pr:0,items:items});saveHistory()}
 function normalizeWorkoutData(){state.exercises.forEach(function(e){e.sets.forEach(function(s){if(s.length<6)s[5]=""})});const ohp=state.exercises.find(function(e){return e.id==="ohp"});const dips=state.exercises.find(function(e){return e.id==="dips"});if(ohp){ohp.group="A";ohp.groupType="superset"}if(dips){dips.group="A";dips.groupType="superset"}}
 function groupMembers(group){return state.exercises.map(function(e,i){return e.group===group?i:-1}).filter(function(i){return i>=0})}
 function nextGroupTarget(ei){const e=state.exercises[ei];if(!e.group)return null;const members=groupMembers(e.group);const pos=members.indexOf(ei);if(pos<0)return null;if(pos<members.length-1)return members[pos+1];const allDone=members.every(function(idx){return state.exercises[idx].sets.every(function(s){return s[4]})});if(allDone){const last=Math.max.apply(null,members);return last<state.exercises.length-1?last+1:last}return members[0]}
@@ -360,7 +365,7 @@ requestAnimationFrame(function(){const el=document.getElementById("exercise-"+ne
 const jump=document.querySelector("[data-jump-active]");if(jump)jump.onclick=function(){const el=document.getElementById("exercise-"+state.activeExercise);if(el)el.scrollIntoView({behavior:"smooth",block:"start"})};
 document.querySelectorAll("[data-rest-now]").forEach(function(b){b.onclick=function(){rest(90)}});
 document.querySelectorAll("[data-set-options]").forEach(function(b){b.onclick=function(){openSetSheet(+b.dataset.ei,+b.dataset.si)}});
-const f=document.getElementById("finish");if(f)f.onclick=function(){if(confirm("¿Finalizar este entrenamiento?")){clearInterval(state.workoutTimer);state.startedAt=null;state.elapsed=0;state.activeExercise=0;state.exercises.forEach(function(e){e.sets.forEach(function(s){s[4]=false})});clearSavedWorkout();state.tab="history";render()}}
+const f=document.getElementById("finish");if(f)f.onclick=function(){if(confirm("¿Finalizar este entrenamiento?")){addCompletedSession();clearInterval(state.workoutTimer);state.startedAt=null;state.elapsed=0;state.activeExercise=0;state.exercises.forEach(function(e){e.sets.forEach(function(s){s[4]=false})});clearSavedWorkout();state.historyMode="sessions";state.tab="history";render()}}
 }
 
 function render(){
@@ -369,5 +374,6 @@ document.getElementById("app").innerHTML=views[state.tab]();
 tabbar();events();bindGestures();if(window.lucide)lucide.createIcons()
 }
 normalizeWorkoutData();
+restoreHistory();
 restoreWorkout();
 render();
