@@ -15,7 +15,7 @@ function topbar(){return '<div class="topbar"><div class="brandmark"><span class
 function row(icon,title,sub){return '<button class="list-row"><span class="list-icon">'+ic(icon)+'</span><span class="list-copy"><span class="list-title">'+title+'</span><span class="list-sub">'+sub+'</span></span>'+ic("chevron-right")+'</button>'}
 
 function home(){
-const active=state.startedAt?'<div class="status-banner">'+ic("timer")+' Entrenamiento en curso · toca para continuar</div>':"";
+const active=state.startedAt?'<button class="status-banner" data-go="workout">'+ic("timer")+' Entrenamiento en curso · toca para continuar</button>':"";
 return '<section class="page">'+topbar()+active+
 '<div class="eyebrow">'+dateLabel()+'</div><h1>Buenas tardes.</h1>'+
 '<article class="card hero">'+
@@ -160,7 +160,8 @@ document.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function()
 document.querySelectorAll("[data-exercise-nav]").forEach(function(b){
 b.onclick=function(){
 const next=Math.max(0,Math.min(state.exercises.length-1,state.activeExercise+Number(b.dataset.exerciseNav)));
-state.activeExercise=next;saveWorkout();restoreWorkout();
+state.activeExercise=next;saveWorkout();
+restoreWorkout();
 render();
 requestAnimationFrame(function(){const el=document.getElementById("exercise-"+next);if(el)el.scrollIntoView({behavior:"smooth",block:"start"})})
 }});
