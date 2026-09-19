@@ -428,6 +428,43 @@ function bindGestures(){
  document.querySelectorAll("[data-set-row]").forEach(function(row){let x=0,y=0;row.addEventListener("pointerdown",function(ev){if(ev.target.closest("input,button"))return;x=ev.clientX;y=ev.clientY});row.addEventListener("pointerup",function(ev){if(!x)return;const dx=ev.clientX-x,dy=ev.clientY-y;x=0;if(Math.abs(dx)<52||Math.abs(dx)<Math.abs(dy))return;const ei=+row.dataset.ei,si=+row.dataset.si;const max=state.exercises[ei].sets.length-1;const next=Math.max(0,Math.min(max,si+(dx<0?1:-1)));if(next!==si)focusSet(ei,next)})})
 }
 
+function openNotifications(){
+ document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="info-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">Actividad</div><h2>Notificaciones</h2></div><button class="icon-btn" id="close-info">'+ic("x")+'</button></div><div class="notification-list"><div>'+ic("message-square-text")+'<span><strong>Nueva indicación</strong><small>Press banca · controla la bajada durante 2 s</small></span></div><div>'+ic("sparkles")+'<span><strong>Rutina actualizada</strong><small>Empuje A recibió ajustes hoy</small></span></div></div></div></div>';
+ if(window.lucide)lucide.createIcons();
+ document.getElementById("close-info").onclick=clearRest;
+ document.getElementById("info-bg").onclick=function(e){if(e.target.id==="info-bg")clearRest()}
+}
+function openExerciseNote(ei){
+ const e=state.exercises[ei];
+ document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="ex-note-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">Ejercicio</div><h2>'+e.name+'</h2></div><button class="icon-btn" id="close-ex-note">'+ic("x")+'</button></div><textarea id="exercise-note-text" class="note-editor" placeholder="Nota para este ejercicio…">'+(e.note||"")+'</textarea><div class="note-sheet-actions"><button class="secondary" id="clear-ex-note">Limpiar</button><button class="primary" id="save-ex-note">Guardar</button></div></div></div>';
+ if(window.lucide)lucide.createIcons();
+ document.getElementById("close-ex-note").onclick=clearRest;
+ document.getElementById("ex-note-bg").onclick=function(ev){if(ev.target.id==="ex-note-bg")clearRest()};
+ document.getElementById("clear-ex-note").onclick=function(){document.getElementById("exercise-note-text").value=""};
+ document.getElementById("save-ex-note").onclick=function(){e.note=document.getElementById("exercise-note-text").value.trim();saveWorkout();clearRest();render()}
+}
+function openExerciseMenu(ei){
+ const e=state.exercises[ei];
+ document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="ex-menu-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">Opciones</div><h2>'+e.name+'</h2></div><button class="icon-btn" id="close-ex-menu">'+ic("x")+'</button></div><div class="sheet-actions"><button id="menu-add-set">'+ic("plus")+' Agregar serie</button><button id="menu-note">'+ic("message-square-text")+' Nota</button><button id="menu-rest">'+ic("timer-reset")+' Descanso</button><button id="menu-history">'+ic("history")+' Historial</button></div></div></div>';
+ if(window.lucide)lucide.createIcons();
+ document.getElementById("close-ex-menu").onclick=clearRest;
+ document.getElementById("ex-menu-bg").onclick=function(ev){if(ev.target.id==="ex-menu-bg")clearRest()};
+ document.getElementById("menu-add-set").onclick=function(){const sets=e.sets,last=sets[sets.length-1];sets.push([String(sets.length+1),"—",last?last[2]:0,last?last[3]:10,false,""]);saveWorkout();clearRest();render()};
+ document.getElementById("menu-note").onclick=function(){clearRest();openExerciseNote(ei)};
+ document.getElementById("menu-rest").onclick=function(){clearRest();rest(preferences.restSeconds)};
+ document.getElementById("menu-history").onclick=function(){const hi=exerciseHistory.findIndex(function(x){return x.id===e.id||x.name===e.name});clearRest();if(hi>=0){state.historyExercise=hi;state.historyMode="exercises";state.tab="history";render()}}
+}
+function openWorkoutMenu(){
+ document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="workout-menu-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">Sesión activa</div><h2>'+state.activeRoutineName+'</h2></div><button class="icon-btn" id="close-workout-menu">'+ic("x")+'</button></div><div class="sheet-actions"><button id="workout-home">'+ic("minimize-2")+' Minimizar</button><button id="workout-rest">'+ic("timer-reset")+' Descanso</button><button id="workout-routines">'+ic("list-checks")+' Cambiar rutina</button><button id="workout-discard">'+ic("trash-2")+' Descartar</button></div></div></div>';
+ if(window.lucide)lucide.createIcons();
+ document.getElementById("close-workout-menu").onclick=clearRest;
+ document.getElementById("workout-menu-bg").onclick=function(ev){if(ev.target.id==="workout-menu-bg")clearRest()};
+ document.getElementById("workout-home").onclick=function(){clearRest();state.tab="home";render()};
+ document.getElementById("workout-rest").onclick=function(){clearRest();rest(preferences.restSeconds)};
+ document.getElementById("workout-routines").onclick=function(){clearRest();state.tab="routines";render()};
+ document.getElementById("workout-discard").onclick=function(){if(confirm("¿Descartar este entrenamiento?")){clearInterval(state.workoutTimer);state.startedAt=null;state.elapsed=0;state.activeExercise=0;clearSavedWorkout();clearRest();state.tab="home";render()}}
+}
+
 function events(){
 document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){state.tab=b.dataset.go;render()}});
 document.querySelectorAll("[data-history-mode]").forEach(function(b){b.onclick=function(){state.historyMode=b.dataset.historyMode;state.historySession=null;state.historyExercise=null;render()}});
