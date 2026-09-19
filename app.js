@@ -68,7 +68,7 @@ return groupBanner(e,ei)+'<article class="card exercise-card '+(isActive?'exerci
 '<div class="sets"><div class="set-row head"><div>Serie</div><div>Anterior</div><div>kg</div><div>reps</div><div></div></div>'+
 e.sets.map(function(s,si){
 return '<div class="set-block"><div class="set-row '+(s[4]?'set-done':'')+'" data-set-row data-ei="'+ei+'" data-si="'+si+'">'+
-'<button class="set-tag '+(s[0]==="W"?"warmup":"")+'" data-set-options data-ei="'+ei+'" data-si="'+si+'">'+s[0]+'</button>'+
+'<button class="set-tag '+(s[0]==="W"?"warmup":s[0]==="F"?"failed":s[0]==="P"?"partial":"")+'" data-set-options data-ei="'+ei+'" data-si="'+si+'">'+s[0]+'</button>'+
 '<div class="previous">'+s[1]+'</div>'+
 '<input class="set-input" inputmode="decimal" value="'+(s[2]||"")+'" data-ei="'+ei+'" data-si="'+si+'" data-f="2" aria-label="Peso en kilogramos">'+
 '<input class="set-input" inputmode="numeric" value="'+s[3]+'" data-ei="'+ei+'" data-si="'+si+'" data-f="3" aria-label="Repeticiones">'+
