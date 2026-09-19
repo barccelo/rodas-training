@@ -47,18 +47,40 @@ function doneSets(){return state.exercises.reduce(function(a,e){return a+e.sets.
 function fmt(sec){const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;return [h,m,s].map(function(v){return String(v).padStart(2,"0")}).join(":")}
 
 function exerciseCard(e,ei){
-return '<article class="card exercise-card"><div style="display:flex;justify-content:space-between;gap:12px"><div><h3>'+e.name+'</h3><div class="caption">'+e.sets.filter(function(s){return s[4]}).length+' de '+e.sets.length+' series</div></div><button class="icon-btn" style="width:34px;height:34px">'+ic("ellipsis")+'</button></div>'+
-'<div class="note">'+ic("message-square-text")+e.note+'</div><div class="sets"><div class="set-row head"><div></div><div>Anterior</div><div>kg</div><div>reps</div><div></div></div>'+
-e.sets.map(function(s,si){return '<div class="set-row"><div class="caption" style="text-align:center">'+s[0]+'</div><div class="previous">'+s[1]+'</div><input class="set-input" inputmode="decimal" value="'+(s[2]||"")+'" data-ei="'+ei+'" data-si="'+si+'" data-f="2"><input class="set-input" inputmode="numeric" value="'+s[3]+'" data-ei="'+ei+'" data-si="'+si+'" data-f="3"><button class="check '+(s[4]?"done":"")+'" data-check data-ei="'+ei+'" data-si="'+si+'">'+ic("check")+'</button></div>'}).join("")+
-'</div><button class="add-set" data-add="'+ei+'">+ Agregar serie</button></article>'}
+const complete=e.sets.filter(function(s){return s[4]}).length;
+const isActive=state.activeExercise===ei;
+return '<article class="card exercise-card '+(isActive?'exercise-active':'')+'" id="exercise-'+ei+'">'+
+'<div class="exercise-topline"><div class="exercise-index">'+String(ei+1).padStart(2,"0")+'</div><div class="exercise-heading"><h3>'+e.name+'</h3><div class="caption">'+complete+' de '+e.sets.length+' series completadas</div></div>'+
+'<button class="exercise-menu">'+ic("ellipsis")+'</button></div>'+
+'<div class="exercise-quick"><button class="quick-chip">'+ic("history")+' Historial</button><button class="quick-chip">'+ic("message-square-text")+' Nota</button><button class="quick-chip" data-rest-now>'+ic("timer-reset")+' Descanso</button></div>'+
+'<div class="note">'+ic("message-square-text")+e.note+'</div>'+
+'<div class="sets"><div class="set-row head"><div>Serie</div><div>Anterior</div><div>kg</div><div>reps</div><div></div></div>'+
+e.sets.map(function(s,si){
+return '<div class="set-row '+(s[4]?'set-done':'')+'">'+
+'<button class="set-tag '+(s[0]==="W"?"warmup":"")+'" data-set-options data-ei="'+ei+'" data-si="'+si+'">'+s[0]+'</button>'+
+'<div class="previous">'+s[1]+'</div>'+
+'<input class="set-input" inputmode="decimal" value="'+(s[2]||"")+'" data-ei="'+ei+'" data-si="'+si+'" data-f="2" aria-label="Peso en kilogramos">'+
+'<input class="set-input" inputmode="numeric" value="'+s[3]+'" data-ei="'+ei+'" data-si="'+si+'" data-f="3" aria-label="Repeticiones">'+
+'<button class="check '+(s[4]?"done":"")+'" data-check data-ei="'+ei+'" data-si="'+si+'" aria-label="Completar serie">'+ic("check")+'</button></div>'
+}).join("")+
+'</div><button class="add-set" data-add="'+ei+'">'+ic("plus")+' Agregar serie</button></article>'
+}
 
 function workout(){
 if(!state.startedAt){
 return '<section class="page">'+topbar()+'<div class="eyebrow">Entrenamiento</div><h1>Empuje A</h1><article class="card" style="padding:28px 18px;text-align:center"><div class="list-icon" style="margin:0 auto 14px;width:58px;height:58px">'+ic("dumbbell")+'</div><h2 style="margin-bottom:6px">Listo para entrenar</h2><p class="muted">7 ejercicios · aproximadamente 52 minutos.</p><button class="primary" id="start-workout">Comenzar entrenamiento</button></article></section>'
 }
 const progress=Math.round(doneSets()/totalSets()*100);
-return '<section class="page"><header class="workout-head"><div class="workout-titlebar"><button class="icon-btn" data-go="home">'+ic("chevron-left")+'</button><div style="text-align:center"><h2>Empuje A</h2><div class="timer" id="workout-timer">'+fmt(state.elapsed)+'</div></div><button class="icon-btn">'+ic("ellipsis")+'</button></div><div class="progress"><span style="width:'+progress+'%"></span></div></header>'+
-state.exercises.map(exerciseCard).join("")+'<button class="primary" id="finish" style="width:100%">Finalizar entrenamiento</button></section>'}
+const current=state.activeExercise+1;
+return '<section class="page workout-page">'+
+'<header class="workout-head"><div class="workout-titlebar"><button class="workout-close" data-go="home">'+ic("chevron-down")+'</button><div class="workout-titlecopy"><strong>Empuje A</strong><span id="workout-timer">'+fmt(state.elapsed)+'</span></div><button class="workout-more">'+ic("ellipsis")+'</button></div>'+
+'<div class="session-summary"><span>'+doneSets()+' / '+totalSets()+' series</span><span>'+progress+'%</span></div><div class="progress"><span style="width:'+progress+'%"></span></div></header>'+
+'<div class="current-exercise-label"><span>Ejercicio '+current+' de '+state.exercises.length+'</span><button data-jump-active>'+ic("locate-fixed")+' Ir al actual</button></div>'+
+state.exercises.map(exerciseCard).join("")+
+'<div class="finish-zone"><div><strong>¿Terminaste?</strong><span>Revisa las series antes de cerrar la sesión.</span></div><button class="finish-btn" id="finish">Finalizar</button></div>'+
+'<div class="session-dock"><button class="dock-nav" data-exercise-nav="-1" '+(state.activeExercise===0?'disabled':'')+'>'+ic("chevron-left")+'<span>Anterior</span></button><button class="dock-main" data-rest-now>'+ic("timer")+'<span>Descanso</span></button><button class="dock-nav" data-exercise-nav="1" '+(state.activeExercise===state.exercises.length-1?'disabled':'')+'><span>Siguiente</span>'+ic("chevron-right")+'</button></div>'+
+'</section>'
+}
 
 function history(){
 const es=[["Ayer","Tirón A","1 h 08 min","8.420 kg","21","6"],["Martes","Empuje A","54 min","7.880 kg","20","7"],["Lunes","Piernas A","1 h 12 min","11.260 kg","24","7"],["12 sep","Tirón A","1 h 02 min","8.100 kg","20","6"]];
