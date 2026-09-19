@@ -120,7 +120,7 @@ function routines(){
  routineCatalog.map(function(r,i){return {r:r,i:i}}).filter(function(x){return state.routineFilter==="personal"?!!x.r.personal:!x.r.personal}).map(function(x){const r=x.r,i=x.i;
    return '<article class="card routine routine-list-card"><button class="routine-open" data-routine-detail="'+i+'"><div class="routine-top"><div><div class="routine-source">'+ic("user-round-check")+' '+r.source+'</div><h3>'+r.name+'</h3><div class="muted">'+r.subtitle+'</div></div>'+ic("chevron-right")+'</div><div class="routine-meta"><span>'+ic("dumbbell")+' '+r.exercises.length+' ejercicios</span><span>'+ic("layers-3")+' '+routineSetCount(r)+' series</span><span>'+ic("clock-3")+' '+r.duration+'</span></div></button><div class="routine-quick-actions"><button class="small accent" data-start-routine="'+i+'">'+ic("play")+' Entrenar</button><button class="small" data-routine-detail="'+i+'">Ver detalle</button></div></article>'
  }).join("")+
- '<div class="section"><div class="section-head"><h2>Biblioteca</h2></div><article class="card list-card">'+row("library","Ejercicios","Explorar biblioteca y ejercicios propios")+row("plus-circle","Crear rutina","Diseña una rutina personal")+'</article></div></section>'
+ '<div class="section"><div class="section-head"><h2>Biblioteca</h2></div><article class="card list-card"><button class="list-row" data-open-library><span class="list-icon">'+ic("library")+'</span><span class="list-copy"><span class="list-title">Ejercicios</span><span class="list-sub">Explorar biblioteca y ejercicios propios</span></span>'+ic("chevron-right")+'</button><button class="list-row" data-create-routine><span class="list-icon">'+ic("plus-circle")+'</span><span class="list-copy"><span class="list-title">Crear rutina</span><span class="list-sub">Diseña una rutina personal</span></span>'+ic("chevron-right")+'</button></article></div></section>'
 }
 
 function routineDetailView(index){
@@ -465,8 +465,29 @@ function openWorkoutMenu(){
  document.getElementById("workout-discard").onclick=function(){if(confirm("¿Descartar este entrenamiento?")){clearInterval(state.workoutTimer);state.startedAt=null;state.elapsed=0;state.activeExercise=0;clearSavedWorkout();clearRest();state.tab="home";render()}}
 }
 
+function openLibrary(){
+ const names=["Press banca","Sentadilla","Remo con barra","Press militar","Dominadas","Peso muerto rumano","Elevaciones laterales","Curl inclinado"];
+ document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="lib-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">Biblioteca</div><h2>Ejercicios</h2></div><button class="icon-btn" id="close-lib">'+ic("x")+'</button></div><div class="library-search">'+ic("search")+'<input id="lib-search" placeholder="Buscar ejercicio"></div><div class="library-results" id="lib-results">'+names.map(function(n){return '<div>'+ic("dumbbell")+'<span>'+n+'</span></div>'}).join("")+'</div></div></div>';
+ if(window.lucide)lucide.createIcons();
+ document.getElementById("close-lib").onclick=clearRest;
+ document.getElementById("lib-bg").onclick=function(ev){if(ev.target.id==="lib-bg")clearRest()};
+ document.getElementById("lib-search").oninput=function(){const q=this.value.toLowerCase();document.querySelectorAll("#lib-results>div").forEach(function(el){el.style.display=el.textContent.toLowerCase().includes(q)?"":"none"})}
+}
+function createPersonalRoutine(){
+ const name=prompt("Nombre de la nueva rutina","Nueva rutina");if(!name)return;
+ routineCatalog.push({id:"personal-"+Date.now(),name:name.trim(),subtitle:"Rutina personal",duration:"45 min",source:"Propia",editable:true,personal:true,exercises:[]});
+ state.routineFilter="personal";state.routineDetail=routineCatalog.length-1;render()
+}
+
 function events(){
 document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){state.tab=b.dataset.go;render()}});
+const notifications=document.querySelector("[data-notifications]");if(notifications)notifications.onclick=openNotifications;
+const workoutMore=document.querySelector("[data-workout-more]");if(workoutMore)workoutMore.onclick=openWorkoutMenu;
+document.querySelectorAll("[data-exercise-menu]").forEach(function(b){b.onclick=function(){openExerciseMenu(+b.dataset.exerciseMenu)}});
+document.querySelectorAll("[data-exercise-note]").forEach(function(b){b.onclick=function(){openExerciseNote(+b.dataset.exerciseNote)}});
+document.querySelectorAll("[data-exercise-history]").forEach(function(b){b.onclick=function(){const e=state.exercises[+b.dataset.exerciseHistory],hi=exerciseHistory.findIndex(function(x){return x.id===e.id||x.name===e.name});if(hi>=0){state.historyExercise=hi;state.historyMode="exercises";state.tab="history";render()}}});
+const openLib=document.querySelector("[data-open-library]");if(openLib)openLib.onclick=openLibrary;
+const createRoutine=document.querySelector("[data-create-routine]");if(createRoutine)createRoutine.onclick=createPersonalRoutine;
 document.querySelectorAll("[data-history-mode]").forEach(function(b){b.onclick=function(){state.historyMode=b.dataset.historyMode;state.historySession=null;state.historyExercise=null;render()}});
 document.querySelectorAll("[data-history-session]").forEach(function(b){b.onclick=function(){state.historySession=+b.dataset.historySession;render()}});
 document.querySelectorAll("[data-history-exercise]").forEach(function(b){b.onclick=function(){state.historyExercise=+b.dataset.historyExercise;render()}});
