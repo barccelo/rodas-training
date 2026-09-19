@@ -334,7 +334,7 @@ function settingToggle(title,subtitle,key,on){
 function photosView(){
  const current=progressPhotos[progressPhotos.length-1],first=progressPhotos[0];
  return '<section class="page">'+profileSubhead("Fotos de progreso","Progreso")+
- '<article class="card photo-compare-card"><div class="photo-compare-head"><div><strong>Comparación</strong><span>'+first.date+' → '+current.date+'</span></div>'<button class="link" id="swap-photo-view">'+((current&&current.view)||"Frente")+'</button>'</div>'+
+ '<article class="card photo-compare-card"><div class="photo-compare-head"><div><strong>Comparación</strong><span>'+first.date+' → '+current.date+'</span></div><button class="link" id="swap-photo-view">'+((current&&current.view)||"Frente")+'</button></div>'+
  '<div class="photo-compare-grid">'+photoTile(first)+photoTile(current)+'</div></article>'+
  '<button class="primary photo-add-btn" id="add-progress-photo">'+ic("camera")+' Agregar foto</button>'+
  '<input id="progress-photo-input" type="file" accept="image/*" hidden>'+
