@@ -4,6 +4,11 @@ const state={tab:"home",startedAt:null,elapsed:0,workoutTimer:null,restTimer:nul
 {id:"dips",name:"Fondos",note:"RIR objetivo: 2.",sets:[["1","BW × 10",0,10,false],["2","BW × 9",0,10,false],["3","BW × 8",0,9,false]]}
 ]};
 const tabs=[["home","house","Inicio"],["routines","list-checks","Rutinas"],["workout","play","Entrenar"],["history","clock-3","Historial"],["profile","circle-user-round","Perfil"]];
+const STORAGE_KEY="rodas.activeWorkout.v1";
+function saveWorkout(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify({startedAt:state.startedAt,elapsed:state.elapsed,activeExercise:state.activeExercise,exercises:state.exercises}))}catch(e){}}
+function restoreWorkout(){try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return;const saved=JSON.parse(raw);if(saved.startedAt){state.startedAt=saved.startedAt;state.elapsed=Math.floor((Date.now()-saved.startedAt)/1000);state.activeExercise=Number.isInteger(saved.activeExercise)?saved.activeExercise:0;if(Array.isArray(saved.exercises))state.exercises=saved.exercises;startWorkoutTimer()}}catch(e){}}
+function clearSavedWorkout(){try{localStorage.removeItem(STORAGE_KEY)}catch(e){}}
+function startWorkoutTimer(){clearInterval(state.workoutTimer);if(!state.startedAt)return;state.workoutTimer=setInterval(function(){state.elapsed=Math.floor((Date.now()-state.startedAt)/1000);const el=document.getElementById("workout-timer");if(el)el.textContent=fmt(state.elapsed);saveWorkout()},1000)}
 function ic(n){return '<i data-lucide="'+n+'"></i>'}
 function dateLabel(){return new Intl.DateTimeFormat("es-ES",{weekday:"long",day:"numeric",month:"long"}).format(new Date()).replace(/^./,m=>m.toUpperCase())}
 function topbar(){return '<div class="topbar"><div class="brandmark"><span class="brand-dot"></span><span class="brand-name">RODAS</span></div><button class="icon-btn" aria-label="Notificaciones">'+ic("bell")+'</button></div>'}
@@ -108,11 +113,7 @@ document.querySelectorAll("[data-tab]").forEach(function(b){b.onclick=function()
 
 function startWorkout(){
 if(state.startedAt)return;
-state.startedAt=Date.now();state.elapsed=0;clearInterval(state.workoutTimer);
-state.workoutTimer=setInterval(function(){
-state.elapsed=Math.floor((Date.now()-state.startedAt)/1000);
-const el=document.getElementById("workout-timer");if(el)el.textContent=fmt(state.elapsed)
-},1000)
+state.startedAt=Date.now();state.elapsed=0;state.activeExercise=0;saveWorkout();startWorkoutTimer()
 }
 
 function rest(seconds){
@@ -144,7 +145,7 @@ if(kind==="warmup")set[0]="W";
 else if(kind==="failed")set[0]="F";
 else if(kind==="partial")set[0]="P";
 else if(set[0]==="W"||set[0]==="F"||set[0]==="P")set[0]=String(si+1);
-clearRest();render()
+clearRest();saveWorkout();render()
 }});
 }
 
@@ -153,19 +154,20 @@ document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){
 const sh=document.getElementById("start-home");if(sh)sh.onclick=function(){startWorkout();state.tab="workout";render()};
 const sw=document.getElementById("start-workout");if(sw)sw.onclick=function(){startWorkout();render()};
 document.querySelectorAll("[data-start]").forEach(function(b){b.onclick=function(){startWorkout();state.tab="workout";render()}});
-document.querySelectorAll("[data-check]").forEach(function(b){b.onclick=function(){const e=+b.dataset.ei,s=+b.dataset.si;state.exercises[e].sets[s][4]=!state.exercises[e].sets[s][4];if(state.exercises[e].sets[s][4])rest(90);render()}});
-document.querySelectorAll(".set-input").forEach(function(inp){inp.onchange=function(){const v=Number(inp.value.replace(",","."));state.exercises[+inp.dataset.ei].sets[+inp.dataset.si][+inp.dataset.f]=Number.isFinite(v)?v:0}});
-document.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){const e=+b.dataset.add,sets=state.exercises[e].sets,last=sets[sets.length-1];sets.push([String(sets.length+1),"—",last[2],last[3],false]);render()}});
+document.querySelectorAll("[data-check]").forEach(function(b){b.onclick=function(){const e=+b.dataset.ei,s=+b.dataset.si;const set=state.exercises[e].sets[s];set[4]=!set[4];if(set[4]){const exerciseDone=state.exercises[e].sets.every(function(x){return x[4]});if(exerciseDone&&e<state.exercises.length-1)state.activeExercise=e+1;rest(90)}saveWorkout();render()}});
+document.querySelectorAll(".set-input").forEach(function(inp){inp.onchange=function(){const v=Number(inp.value.replace(",","."));state.exercises[+inp.dataset.ei].sets[+inp.dataset.si][+inp.dataset.f]=Number.isFinite(v)?v:0;saveWorkout()}});
+document.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){const e=+b.dataset.add,sets=state.exercises[e].sets,last=sets[sets.length-1];sets.push([String(sets.length+1),"—",last[2],last[3],false]);saveWorkout();render()}});
 document.querySelectorAll("[data-exercise-nav]").forEach(function(b){
 b.onclick=function(){
 const next=Math.max(0,Math.min(state.exercises.length-1,state.activeExercise+Number(b.dataset.exerciseNav)));
-state.activeExercise=next;render();
+state.activeExercise=next;saveWorkout();restoreWorkout();
+render();
 requestAnimationFrame(function(){const el=document.getElementById("exercise-"+next);if(el)el.scrollIntoView({behavior:"smooth",block:"start"})})
 }});
 const jump=document.querySelector("[data-jump-active]");if(jump)jump.onclick=function(){const el=document.getElementById("exercise-"+state.activeExercise);if(el)el.scrollIntoView({behavior:"smooth",block:"start"})};
-const restNow=document.querySelector("[data-rest-now]");if(restNow)restNow.onclick=function(){rest(90)};
+document.querySelectorAll("[data-rest-now]").forEach(function(b){b.onclick=function(){rest(90)}});
 document.querySelectorAll("[data-set-options]").forEach(function(b){b.onclick=function(){openSetSheet(+b.dataset.ei,+b.dataset.si)}});
-const f=document.getElementById("finish");if(f)f.onclick=function(){if(confirm("¿Finalizar este entrenamiento?")){clearInterval(state.workoutTimer);state.startedAt=null;state.elapsed=0;state.exercises.forEach(function(e){e.sets.forEach(function(s){s[4]=false})});state.tab="history";render()}}
+const f=document.getElementById("finish");if(f)f.onclick=function(){if(confirm("¿Finalizar este entrenamiento?")){clearInterval(state.workoutTimer);state.startedAt=null;state.elapsed=0;state.activeExercise=0;state.exercises.forEach(function(e){e.sets.forEach(function(s){s[4]=false})});clearSavedWorkout();state.tab="history";render()}}
 }
 
 function render(){
