@@ -1,16 +1,37 @@
-const state={tab:"home",startedAt:null,elapsed:0,workoutTimer:null,restTimer:null,restEndsAt:null,activeExercise:0,exercises:[
+const state={tab:"home",routineDetail:null,activeRoutineName:"Empuje A",startedAt:null,elapsed:0,workoutTimer:null,restTimer:null,restEndsAt:null,activeExercise:0,exercises:[
 {id:"bench",name:"Press banca",note:"Controlar la bajada · 2 s. Mantener escápulas retraídas.",sets:[["W","40 × 10",40,10,false,""],["1","70 × 8",72.5,8,false,""],["2","70 × 8",72.5,8,false,""],["3","70 × 7",72.5,8,false,""]]},
 {id:"ohp",name:"Press militar",note:"Evitar hiperextender la zona lumbar.",group:"A",groupType:"superset",sets:[["1","40 × 8",42.5,8,false,""],["2","40 × 8",42.5,8,false,""],["3","40 × 7",42.5,8,false,""]]},
 {id:"dips",name:"Fondos",note:"RIR objetivo: 2.",group:"A",groupType:"superset",sets:[["1","BW × 10",0,10,false,""],["2","BW × 9",0,10,false,""],["3","BW × 8",0,9,false,""]]}
 ]};
 const tabs=[["home","house","Inicio"],["routines","list-checks","Rutinas"],["workout","play","Entrenar"],["history","clock-3","Historial"],["profile","circle-user-round","Perfil"]];
+const routineCatalog=[
+ {id:"push-a",name:"Empuje A",subtitle:"Pecho · Hombros · Tríceps",duration:"52 min",source:"Entrenador",editable:true,exercises:[
+  {id:"bench",name:"Press banca",note:"Controlar la bajada · 2 s. Mantener escápulas retraídas.",sets:[["W","40 × 10",40,10,false,""],["1","70 × 8",72.5,8,false,""],["2","70 × 8",72.5,8,false,""],["3","70 × 7",72.5,8,false,""]]},
+  {id:"ohp",name:"Press militar",note:"Evitar hiperextender la zona lumbar.",group:"A",groupType:"superset",sets:[["1","40 × 8",42.5,8,false,""],["2","40 × 8",42.5,8,false,""],["3","40 × 7",42.5,8,false,""]]},
+  {id:"dips",name:"Fondos",note:"RIR objetivo: 2.",group:"A",groupType:"superset",sets:[["1","BW × 10",0,10,false,""],["2","BW × 9",0,10,false,""],["3","BW × 8",0,9,false,""]]},
+  {id:"lateral",name:"Elevaciones laterales",note:"Control y pausa arriba.",sets:[["1","10 × 15",10,15,false,""],["2","10 × 14",10,15,false,""],["3","10 × 13",10,15,false,""]]}
+ ]},
+ {id:"pull-a",name:"Tirón A",subtitle:"Espalda · Bíceps",duration:"58 min",source:"Entrenador",editable:true,exercises:[
+  {id:"pullup",name:"Dominadas",note:"Pecho hacia la barra.",sets:[["1","BW × 8",0,8,false,""],["2","BW × 7",0,8,false,""],["3","BW × 6",0,7,false,""]]},
+  {id:"row",name:"Remo con barra",note:"Mantén torso estable.",sets:[["1","65 × 10",67.5,10,false,""],["2","65 × 9",67.5,10,false,""],["3","65 × 8",67.5,9,false,""]]},
+  {id:"curl",name:"Curl inclinado",note:"Sin balanceo.",sets:[["1","12 × 10",12,10,false,""],["2","12 × 9",12,10,false,""],["3","12 × 8",12,9,false,""]]}
+ ]},
+ {id:"legs-a",name:"Piernas A",subtitle:"Cuádriceps · Femoral · Gemelos",duration:"64 min",source:"Entrenador",editable:true,exercises:[
+  {id:"squat",name:"Sentadilla",note:"Profundidad consistente.",sets:[["W","60 × 8",60,8,false,""],["1","100 × 6",102.5,6,false,""],["2","100 × 6",102.5,6,false,""],["3","100 × 5",102.5,6,false,""]]},
+  {id:"rdl",name:"Peso muerto rumano",note:"Cadera atrás, espalda neutra.",sets:[["1","80 × 8",82.5,8,false,""],["2","80 × 8",82.5,8,false,""],["3","80 × 7",82.5,8,false,""]]},
+  {id:"calf",name:"Elevación de gemelos",note:"Pausa arriba y abajo.",sets:[["1","60 × 15",60,15,false,""],["2","60 × 14",60,15,false,""],["3","60 × 13",60,15,false,""]]}
+ ]}
+];
+function cloneExercises(items){return JSON.parse(JSON.stringify(items))}
+function routineSetCount(r){return r.exercises.reduce(function(a,e){return a+e.sets.length},0)}
+function routineGroupCount(r){const gs={};r.exercises.forEach(function(e){if(e.group)gs[e.group]=1});return Object.keys(gs).length}
 const STORAGE_KEY="rodas.activeWorkout.v1";
 function normalizeWorkoutData(){state.exercises.forEach(function(e){e.sets.forEach(function(s){if(s.length<6)s[5]=""})});const ohp=state.exercises.find(function(e){return e.id==="ohp"});const dips=state.exercises.find(function(e){return e.id==="dips"});if(ohp){ohp.group="A";ohp.groupType="superset"}if(dips){dips.group="A";dips.groupType="superset"}}
 function groupMembers(group){return state.exercises.map(function(e,i){return e.group===group?i:-1}).filter(function(i){return i>=0})}
 function nextGroupTarget(ei){const e=state.exercises[ei];if(!e.group)return null;const members=groupMembers(e.group);const pos=members.indexOf(ei);if(pos<0)return null;if(pos<members.length-1)return members[pos+1];const allDone=members.every(function(idx){return state.exercises[idx].sets.every(function(s){return s[4]})});if(allDone){const last=Math.max.apply(null,members);return last<state.exercises.length-1?last+1:last}return members[0]}
 function focusSet(ei,si){const row=document.querySelector('[data-set-row][data-ei="'+ei+'"][data-si="'+si+'"]');if(!row)return;document.querySelectorAll(".set-focused").forEach(function(el){el.classList.remove("set-focused")});row.classList.add("set-focused");row.scrollIntoView({behavior:"smooth",block:"center"});setTimeout(function(){row.classList.remove("set-focused")},900)}
-function saveWorkout(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify({startedAt:state.startedAt,elapsed:state.elapsed,activeExercise:state.activeExercise,exercises:state.exercises}))}catch(e){}}
-function restoreWorkout(){try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return;const saved=JSON.parse(raw);if(saved.startedAt){state.startedAt=saved.startedAt;state.elapsed=Math.floor((Date.now()-saved.startedAt)/1000);state.activeExercise=Number.isInteger(saved.activeExercise)?saved.activeExercise:0;if(Array.isArray(saved.exercises))state.exercises=saved.exercises;normalizeWorkoutData();startWorkoutTimer()}}catch(e){}}
+function saveWorkout(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify({startedAt:state.startedAt,elapsed:state.elapsed,activeExercise:state.activeExercise,activeRoutineName:state.activeRoutineName,exercises:state.exercises}))}catch(e){}}
+function restoreWorkout(){try{const raw=localStorage.getItem(STORAGE_KEY);if(!raw)return;const saved=JSON.parse(raw);if(saved.startedAt){state.startedAt=saved.startedAt;state.elapsed=Math.floor((Date.now()-saved.startedAt)/1000);state.activeExercise=Number.isInteger(saved.activeExercise)?saved.activeExercise:0;if(saved.activeRoutineName)state.activeRoutineName=saved.activeRoutineName;if(Array.isArray(saved.exercises))state.exercises=saved.exercises;normalizeWorkoutData();startWorkoutTimer()}}catch(e){}}
 function clearSavedWorkout(){try{localStorage.removeItem(STORAGE_KEY)}catch(e){}}
 function startWorkoutTimer(){clearInterval(state.workoutTimer);if(!state.startedAt)return;state.workoutTimer=setInterval(function(){state.elapsed=Math.floor((Date.now()-state.startedAt)/1000);const el=document.getElementById("workout-timer");if(el)el.textContent=fmt(state.elapsed);saveWorkout()},1000)}
 function ic(n){return '<i data-lucide="'+n+'"></i>'}
@@ -46,10 +67,52 @@ row("sparkles","Rutina actualizada","Empuje A recibió ajustes hoy")+
 '</article></div></section>'}
 
 function routines(){
-const rs=[["Empuje A","Pecho · Hombros · Tríceps","7 ejercicios","52 min"],["Tirón A","Espalda · Bíceps","6 ejercicios","58 min"],["Piernas A","Cuádriceps · Femoral · Gemelos","7 ejercicios","64 min"]];
-return '<section class="page">'+topbar()+'<div class="eyebrow">Programa actual</div><h1>Rutinas</h1>'+
-rs.map(function(r,i){return '<article class="card routine"><div class="routine-top"><div><h3>'+r[0]+'</h3><div class="muted">'+r[1]+'</div></div><span class="caption">'+r[3]+'</span></div><div class="caption" style="margin-top:12px">'+r[2]+'</div><div class="actions"><button class="small accent" data-start="'+i+'">'+ic("play")+' Empezar</button><button class="small">Detalles</button></div></article>'}).join("")+
-'<div class="section"><article class="card list-card">'+row("library","Biblioteca de ejercicios","Explorar ejercicios y ejercicios propios")+'</article></div></section>'}
+ if(state.routineDetail!==null)return routineDetailView(state.routineDetail);
+ return '<section class="page">'+topbar()+'<div class="eyebrow">Programa actual</div><h1>Rutinas</h1>'+
+ '<div class="routine-filter"><button class="filter-chip active">Asignadas</button><button class="filter-chip">Propias</button></div>'+
+ routineCatalog.map(function(r,i){
+   return '<article class="card routine routine-list-card"><button class="routine-open" data-routine-detail="'+i+'"><div class="routine-top"><div><div class="routine-source">'+ic("user-round-check")+' '+r.source+'</div><h3>'+r.name+'</h3><div class="muted">'+r.subtitle+'</div></div>'+ic("chevron-right")+'</div><div class="routine-meta"><span>'+ic("dumbbell")+' '+r.exercises.length+' ejercicios</span><span>'+ic("layers-3")+' '+routineSetCount(r)+' series</span><span>'+ic("clock-3")+' '+r.duration+'</span></div></button><div class="routine-quick-actions"><button class="small accent" data-start-routine="'+i+'">'+ic("play")+' Entrenar</button><button class="small" data-routine-detail="'+i+'">Ver detalle</button></div></article>'
+ }).join("")+
+ '<div class="section"><div class="section-head"><h2>Biblioteca</h2></div><article class="card list-card">'+row("library","Ejercicios","Explorar biblioteca y ejercicios propios")+row("plus-circle","Crear rutina","Diseña una rutina personal")+'</article></div></section>'
+}
+
+function routineDetailView(index){
+ const r=routineCatalog[index];
+ return '<section class="page routine-detail-page">'+
+ '<div class="routine-detail-head"><button class="icon-btn" data-close-routine>'+ic("chevron-left")+'</button><div><span>Rutina</span><strong>'+r.name+'</strong></div><button class="icon-btn">'+ic("ellipsis")+'</button></div>'+
+ '<article class="card routine-detail-hero"><div class="routine-detail-source">'+ic("user-round-check")+' Asignada por tu entrenador</div><h1>'+r.name+'</h1><p>'+r.subtitle+'</p><div class="routine-detail-stats"><div><strong>'+r.exercises.length+'</strong><span>Ejercicios</span></div><div><strong>'+routineSetCount(r)+'</strong><span>Series</span></div><div><strong>'+r.duration+'</strong><span>Estimado</span></div></div><button class="primary" data-start-routine="'+index+'">'+ic("play")+' Comenzar rutina</button></article>'+
+ '<div class="routine-permission">'+ic("sliders-horizontal")+' <span><strong>Ajustes personales permitidos</strong><br>Puedes cambiar orden, series y agrupaciones para tu sesión. La rutina original del entrenador no se modifica.</span></div>'+
+ '<div class="section"><div class="section-head"><h2>Ejercicios</h2><span class="caption">'+(routineGroupCount(r)?routineGroupCount(r)+' agrupación':'Sin agrupaciones')+'</span></div>'+
+ r.exercises.map(function(e,ei){
+   const group=e.group?'<span class="routine-group-tag">'+e.group+'</span>':"";
+   return '<article class="card routine-exercise '+(e.group?'grouped':'')+'"><div class="routine-drag">'+ic("grip-vertical")+'</div><div class="routine-exercise-copy">'+group+'<strong>'+e.name+'</strong><span>'+e.sets.length+' series'+(e.note?' · '+e.note:'')+'</span></div><div class="routine-stepper"><button data-move-exercise="'+index+':'+ei+':-1" '+(ei===0?'disabled':'')+'>'+ic("chevron-up")+'</button><button data-move-exercise="'+index+':'+ei+':1" '+(ei===r.exercises.length-1?'disabled':'')+'>'+ic("chevron-down")+'</button></div><button class="routine-edit-btn" data-edit-routine-exercise="'+index+':'+ei+'">'+ic("ellipsis")+'</button></article>'
+ }).join("")+
+ '<button class="routine-add-exercise">'+ic("plus")+' Agregar ejercicio</button></div>'+
+ '</section>'
+}
+
+function openRoutineExerciseSheet(ri,ei){
+ const r=routineCatalog[ri],e=r.exercises[ei];
+ document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="routine-sheet-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">'+r.name+'</div><h2>'+e.name+'</h2></div><button class="icon-btn" id="close-routine-sheet">'+ic("x")+'</button></div><div class="routine-sheet-summary"><span>'+e.sets.length+' series</span><span>'+(e.group?'Grupo '+e.group:'Sin agrupación')+'</span></div><div class="sheet-actions"><button id="routine-add-set">'+ic("plus")+' Agregar serie</button><button id="routine-remove-set">'+ic("minus")+' Quitar serie</button><button id="routine-toggle-group">'+ic("link-2")+' '+(e.group?'Quitar grupo':'Agrupar')+'</button><button id="routine-note">'+ic("message-square-text")+' Nota</button></div></div></div>';
+ if(window.lucide)lucide.createIcons();
+ document.getElementById("close-routine-sheet").onclick=clearRest;
+ document.getElementById("routine-sheet-bg").onclick=function(ev){if(ev.target.id==="routine-sheet-bg")clearRest()};
+ document.getElementById("routine-add-set").onclick=function(){const last=e.sets[e.sets.length-1]||["1","—",0,10,false,""];e.sets.push([String(e.sets.length+1),"—",last[2],last[3],false,""]);clearRest();render()};
+ document.getElementById("routine-remove-set").onclick=function(){if(e.sets.length>1)e.sets.pop();clearRest();render()};
+ document.getElementById("routine-toggle-group").onclick=function(){if(e.group){delete e.group;delete e.groupType}else{e.group="B";e.groupType="superset"}clearRest();render()};
+ document.getElementById("routine-note").onclick=function(){const note=prompt("Nota para "+e.name,e.note||"");if(note!==null)e.note=note.trim();clearRest();render()}
+}
+
+function startRoutine(index){
+ const r=routineCatalog[index];
+ if(state.startedAt&&!confirm("Ya hay un entrenamiento en curso. ¿Reemplazarlo por "+r.name+"?"))return;
+ clearInterval(state.workoutTimer);
+ state.activeRoutineName=r.name;
+ state.exercises=cloneExercises(r.exercises);
+ normalizeWorkoutData();
+ state.startedAt=null;state.elapsed=0;state.activeExercise=0;
+ clearSavedWorkout();startWorkout();state.tab="workout";state.routineDetail=null;render()
+}
 
 function totalSets(){return state.exercises.reduce(function(a,e){return a+e.sets.length},0)}
 function doneSets(){return state.exercises.reduce(function(a,e){return a+e.sets.filter(function(s){return s[4]}).length},0)}
@@ -79,12 +142,12 @@ return '<div class="set-block"><div class="set-row '+(s[4]?'set-done':'')+'" dat
 
 function workout(){
 if(!state.startedAt){
-return '<section class="page">'+topbar()+'<div class="eyebrow">Entrenamiento</div><h1>Empuje A</h1><article class="card" style="padding:28px 18px;text-align:center"><div class="list-icon" style="margin:0 auto 14px;width:58px;height:58px">'+ic("dumbbell")+'</div><h2 style="margin-bottom:6px">Listo para entrenar</h2><p class="muted">7 ejercicios · aproximadamente 52 minutos.</p><button class="primary" id="start-workout">Comenzar entrenamiento</button></article></section>'
+return '<section class="page">'+topbar()+'<div class="eyebrow">Entrenamiento</div><h1>'+state.activeRoutineName+'</h1><article class="card" style="padding:28px 18px;text-align:center"><div class="list-icon" style="margin:0 auto 14px;width:58px;height:58px">'+ic("dumbbell")+'</div><h2 style="margin-bottom:6px">Listo para entrenar</h2><p class="muted">7 ejercicios · aproximadamente 52 minutos.</p><button class="primary" id="start-workout">Comenzar entrenamiento</button></article></section>'
 }
 const progress=Math.round(doneSets()/totalSets()*100);
 const current=state.activeExercise+1;
 return '<section class="page workout-page">'+
-'<header class="workout-head"><div class="workout-titlebar"><button class="workout-close" data-go="home">'+ic("chevron-down")+'</button><div class="workout-titlecopy"><strong>Empuje A</strong><span id="workout-timer">'+fmt(state.elapsed)+'</span></div><button class="workout-more">'+ic("ellipsis")+'</button></div>'+
+'<header class="workout-head"><div class="workout-titlebar"><button class="workout-close" data-go="home">'+ic("chevron-down")+'</button><div class="workout-titlecopy"><strong>'+state.activeRoutineName+'</strong><span id="workout-timer">'+fmt(state.elapsed)+'</span></div><button class="workout-more">'+ic("ellipsis")+'</button></div>'+
 '<div class="session-summary"><span>'+doneSets()+' / '+totalSets()+' series</span><span>'+progress+'%</span></div><div class="progress"><span style="width:'+progress+'%"></span></div></header>'+
 '<div class="current-exercise-label"><span>Ejercicio '+current+' de '+state.exercises.length+'</span><button data-jump-active>'+ic("locate-fixed")+' Ir al actual</button></div>'+
 state.exercises.map(exerciseCard).join("")+
@@ -168,6 +231,11 @@ document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){
 const sh=document.getElementById("start-home");if(sh)sh.onclick=function(){startWorkout();state.tab="workout";render()};
 const sw=document.getElementById("start-workout");if(sw)sw.onclick=function(){startWorkout();render()};
 document.querySelectorAll("[data-start]").forEach(function(b){b.onclick=function(){startWorkout();state.tab="workout";render()}});
+document.querySelectorAll("[data-start-routine]").forEach(function(b){b.onclick=function(){startRoutine(+b.dataset.startRoutine)}});
+document.querySelectorAll("[data-routine-detail]").forEach(function(b){b.onclick=function(){state.routineDetail=+b.dataset.routineDetail;render()}});
+const closeRoutine=document.querySelector("[data-close-routine]");if(closeRoutine)closeRoutine.onclick=function(){state.routineDetail=null;render()};
+document.querySelectorAll("[data-move-exercise]").forEach(function(b){b.onclick=function(){const p=b.dataset.moveExercise.split(":").map(Number),ri=p[0],ei=p[1],dir=p[2],arr=routineCatalog[ri].exercises,next=ei+dir;if(next<0||next>=arr.length)return;const tmp=arr[ei];arr[ei]=arr[next];arr[next]=tmp;render()}});
+document.querySelectorAll("[data-edit-routine-exercise]").forEach(function(b){b.onclick=function(){const p=b.dataset.editRoutineExercise.split(":").map(Number);openRoutineExerciseSheet(p[0],p[1])}});
 document.querySelectorAll("[data-check]").forEach(function(b){b.onclick=function(){const e=+b.dataset.ei,s=+b.dataset.si;const set=state.exercises[e].sets[s];set[4]=!set[4];if(set[4]){const exercise=state.exercises[e];if(exercise.group){const target=nextGroupTarget(e);state.activeExercise=target===null?e:target;const members=groupMembers(exercise.group);const atEnd=members[members.length-1]===e;if(atEnd)rest(90)}else{const exerciseDone=exercise.sets.every(function(x){return x[4]});if(exerciseDone&&e<state.exercises.length-1)state.activeExercise=e+1;rest(90)}}saveWorkout();render()}});
 document.querySelectorAll(".set-input").forEach(function(inp){inp.onchange=function(){const v=Number(inp.value.replace(",","."));state.exercises[+inp.dataset.ei].sets[+inp.dataset.si][+inp.dataset.f]=Number.isFinite(v)?v:0;saveWorkout()}});
 document.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){const e=+b.dataset.add,sets=state.exercises[e].sets,last=sets[sets.length-1];sets.push([String(sets.length+1),"—",last[2],last[3],false]);saveWorkout();render()}});
