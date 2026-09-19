@@ -1,4 +1,4 @@
-const state={tab:"home",startedAt:null,elapsed:0,workoutTimer:null,restTimer:null,restEndsAt:null,exercises:[
+const state={tab:"home",startedAt:null,elapsed:0,workoutTimer:null,restTimer:null,restEndsAt:null,activeExercise:0,exercises:[
 {id:"bench",name:"Press banca",note:"Controlar la bajada · 2 s. Mantener escápulas retraídas.",sets:[["W","40 × 10",40,10,false],["1","70 × 8",72.5,8,false],["2","70 × 8",72.5,8,false],["3","70 × 7",72.5,8,false]]},
 {id:"ohp",name:"Press militar",note:"Evitar hiperextender la zona lumbar.",sets:[["1","40 × 8",42.5,8,false],["2","40 × 8",42.5,8,false],["3","40 × 7",42.5,8,false]]},
 {id:"dips",name:"Fondos",note:"RIR objetivo: 2.",sets:[["1","BW × 10",0,10,false],["2","BW × 9",0,10,false],["3","BW × 8",0,9,false]]}
@@ -72,7 +72,10 @@ return '<section class="page">'+topbar()+'<article class="card profile"><div cla
 '<div class="section"><div class="section-head"><h2>Cuenta</h2></div><article class="card list-card">'+row("user-round-cog","Entrenador","Carlos · conectado")+row("settings-2","Preferencias","Unidades, descanso y apariencia")+row("cloud","Sincronización","Datos guardados")+'</article></div></section>'}
 
 function tabbar(){
-document.getElementById("tabbar").innerHTML=tabs.map(function(t){
+const nav=document.getElementById("tabbar");
+const sessionMode=state.tab==="workout"&&state.startedAt;
+nav.classList.toggle("hidden",sessionMode);
+nav.innerHTML=tabs.map(function(t){
 const active=state.tab===t[0]?"active":"";
 const train=t[0]==="workout"?"train":"";
 const icon=train?'<span class="icon-wrap">'+ic(t[1])+'</span>':ic(t[1]);
@@ -107,6 +110,22 @@ if(left<=0)clearRest()
 }
 function clearRest(){clearInterval(state.restTimer);state.restTimer=null;state.restEndsAt=null;document.getElementById("sheet-root").innerHTML=""}
 
+function openSetSheet(ei,si){
+const set=state.exercises[ei].sets[si],exercise=state.exercises[ei];
+document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="set-sheet-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">'+exercise.name+'</div><h2>Serie '+set[0]+'</h2></div><button class="icon-btn" id="close-set-sheet">'+ic("x")+'</button></div><div class="sheet-actions"><button data-set-kind="normal">'+ic("circle")+' Normal</button><button data-set-kind="warmup">'+ic("flame")+' Calentamiento</button><button data-set-kind="failed">'+ic("x-circle")+' Fallada</button><button data-set-kind="partial">'+ic("circle-dashed")+' Parciales</button></div><button class="secondary" id="set-note" style="width:100%;margin-top:12px">'+ic("message-square-plus")+' Agregar nota a la serie</button></div></div>';
+if(window.lucide)lucide.createIcons();
+document.getElementById("close-set-sheet").onclick=clearRest;
+document.getElementById("set-sheet-bg").onclick=function(ev){if(ev.target.id==="set-sheet-bg")clearRest()};
+document.querySelectorAll("[data-set-kind]").forEach(function(btn){btn.onclick=function(){
+const kind=btn.dataset.setKind;
+if(kind==="warmup")set[0]="W";
+else if(kind==="failed")set[0]="F";
+else if(kind==="partial")set[0]="P";
+else if(set[0]==="W"||set[0]==="F"||set[0]==="P")set[0]=String(si+1);
+clearRest();render()
+}});
+}
+
 function events(){
 document.querySelectorAll("[data-go]").forEach(function(b){b.onclick=function(){state.tab=b.dataset.go;render()}});
 const sh=document.getElementById("start-home");if(sh)sh.onclick=function(){startWorkout();state.tab="workout";render()};
@@ -115,6 +134,15 @@ document.querySelectorAll("[data-start]").forEach(function(b){b.onclick=function
 document.querySelectorAll("[data-check]").forEach(function(b){b.onclick=function(){const e=+b.dataset.ei,s=+b.dataset.si;state.exercises[e].sets[s][4]=!state.exercises[e].sets[s][4];if(state.exercises[e].sets[s][4])rest(90);render()}});
 document.querySelectorAll(".set-input").forEach(function(inp){inp.onchange=function(){const v=Number(inp.value.replace(",","."));state.exercises[+inp.dataset.ei].sets[+inp.dataset.si][+inp.dataset.f]=Number.isFinite(v)?v:0}});
 document.querySelectorAll("[data-add]").forEach(function(b){b.onclick=function(){const e=+b.dataset.add,sets=state.exercises[e].sets,last=sets[sets.length-1];sets.push([String(sets.length+1),"—",last[2],last[3],false]);render()}});
+document.querySelectorAll("[data-exercise-nav]").forEach(function(b){
+b.onclick=function(){
+const next=Math.max(0,Math.min(state.exercises.length-1,state.activeExercise+Number(b.dataset.exerciseNav)));
+state.activeExercise=next;render();
+requestAnimationFrame(function(){const el=document.getElementById("exercise-"+next);if(el)el.scrollIntoView({behavior:"smooth",block:"start"})})
+}});
+const jump=document.querySelector("[data-jump-active]");if(jump)jump.onclick=function(){const el=document.getElementById("exercise-"+state.activeExercise);if(el)el.scrollIntoView({behavior:"smooth",block:"start"})};
+const restNow=document.querySelector("[data-rest-now]");if(restNow)restNow.onclick=function(){rest(90)};
+document.querySelectorAll("[data-set-options]").forEach(function(b){b.onclick=function(){openSetSheet(+b.dataset.ei,+b.dataset.si)}});
 const f=document.getElementById("finish");if(f)f.onclick=function(){if(confirm("¿Finalizar este entrenamiento?")){clearInterval(state.workoutTimer);state.startedAt=null;state.elapsed=0;state.exercises.forEach(function(e){e.sets.forEach(function(s){s[4]=false})});state.tab="history";render()}}
 }
 
