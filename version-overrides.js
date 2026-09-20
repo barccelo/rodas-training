@@ -70,7 +70,7 @@ const VO_LABELS={series:"Series",repsMin:"Reps mín.",repsMax:"Reps máx.",loadM
 function voDisplay(field,val){
  if(field==="loadMode")return val==="suggested"?"Orientativa":val==="fixed"?"Prescrita":"Sin carga";
  if(field==="effortMode")return val==="rir"?"RIR":val==="rpe"?"RPE":"Sin objetivo";
- if(field==="weight")return Number(val||0)+" kg";
+ if(field==="weight"){const shown=typeof toDisplayWeight==="function"?toDisplayWeight(Number(val||0)):Number(val||0),u=typeof unitLabel==="function"?unitLabel():"kg";return shown+" "+u}
  if(field==="rest")return Number(val||0)+" s";
  return String(val==null?"—":val)
 }
@@ -123,12 +123,12 @@ function voFindExercise(snap,rid,did,ek){
  return (d.exercises||[]).find(function(e){return voExerciseKey(e)===ek})||null
 }
 function voFieldInput(a,rid,did,ex,field,base){
- const key=voExerciseKey(ex),ov=voGetOverride(a,rid,did,key,field),value=ov!==undefined?ov:base,custom=ov!==undefined;
+ const key=voExerciseKey(ex),ov=voGetOverride(a,rid,did,key,field),value=ov!==undefined?ov:base,custom=ov!==undefined,shownValue=field==="weight"&&typeof toDisplayWeight==="function"?toDisplayWeight(Number(value||0)):value;
  let input="";
  if(field==="loadMode")input='<select data-vo-field="'+field+'"><option value="none" '+(value==="none"?"selected":"")+'>Sin carga</option><option value="fixed" '+(value==="fixed"?"selected":"")+'>Prescrita</option><option value="suggested" '+(value==="suggested"?"selected":"")+'>Orientativa</option></select>';
  else if(field==="effortMode")input='<select data-vo-field="'+field+'"><option value="none" '+(value==="none"?"selected":"")+'>Sin objetivo</option><option value="rir" '+(value==="rir"?"selected":"")+'>RIR</option><option value="rpe" '+(value==="rpe"?"selected":"")+'>RPE</option></select>';
  else if(field==="note")input='<input data-vo-field="'+field+'" value="'+voEsc(value)+'" placeholder="Nota">';
- else input='<input data-vo-field="'+field+'" inputmode="decimal" value="'+voEsc(value)+'">';
+ else input='<input data-vo-field="'+field+'" inputmode="decimal" value="'+voEsc(shownValue)+'">';
  return '<label class="vo-field '+(custom?"custom":"")+'" data-vo-wrap="'+field+'"><span>'+VO_LABELS[field]+(custom?' <b>Personalizado</b>':'')+'</span>'+input+'<button type="button" data-vo-reset="'+field+'" '+(custom?"":"disabled")+'>'+ic("rotate-ccw")+'</button></label>'
 }
 function voCustomize(id,rid){
@@ -156,7 +156,7 @@ function voCustomize(id,rid){
 function voCaptureCustom(a,rs){
  document.querySelectorAll(".vo-ex-card").forEach(function(card){
   const rid=card.dataset.voRid,did=card.dataset.voDid,ek=card.dataset.voEx,ex=voFindExercise(a.baseSnapshot,rid,did,ek);if(!ex)return;const fs=voFields(ex);
-  card.querySelectorAll("[data-vo-field]").forEach(function(input){const f=input.dataset.voField;let v=input.value;if(["series","repsMin","repsMax","weight","effortTarget","rest"].indexOf(f)>=0){const n=Number(String(v).replace(",","."));v=Number.isFinite(n)?n:fs[f]}voSetOverride(a,rid,did,ek,f,v,fs[f])})
+  card.querySelectorAll("[data-vo-field]").forEach(function(input){const f=input.dataset.voField;let v=input.value;if(["series","repsMin","repsMax","weight","effortTarget","rest"].indexOf(f)>=0){const n=Number(String(v).replace(",","."));v=Number.isFinite(n)?n:fs[f];if(f==="weight"&&typeof fromDisplayWeight==="function")v=fromDisplayWeight(v)}voSetOverride(a,rid,did,ek,f,v,fs[f])})
  })
 }
 function voApplyFieldToExercise(ex,field,value){
@@ -211,7 +211,7 @@ function voEffectivePreview(id,rid,week){
  document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="vo-effective-bg"><div class="sheet vo-effective-sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">'+voEsc(a.traineeName)+'</div><h2>Prescripción efectiva</h2></div><button class="icon-btn" id="vo-close-effective">'+ic("x")+'</button></div>'+
  weekSelect+
  '<div class="vo-effective-info">'+ic("git-merge")+' '+(isProgram?'Programa S'+week+' · ':'')+'Plantilla v'+a.sourceVersion+' + '+voCountOverrides(a)+' campos personalizados</div>'+
- '<div class="vo-effective-days">'+(r.days||[]).map(function(d){return '<section><div class="vo-day-head"><strong>'+voEsc(d.name)+'</strong><span>'+d.exercises.length+' ejercicios</span></div>'+d.exercises.map(function(ex){const fs=voFields(ex);return '<article><div><strong>'+voEsc(ex.name)+'</strong><span>'+fs.series+' series · '+fs.repsMin+(fs.repsMax!==fs.repsMin?'–'+fs.repsMax:'')+' reps'+(fs.loadMode!=="none"?' · '+(fs.loadMode==="suggested"?'~':'')+fs.weight+' kg':'')+' · '+voEsc(fs.effortMode.toUpperCase())+' '+fs.effortTarget+' · '+fs.rest+' s</span></div>'+(ex.note?'<small>'+voEsc(ex.note)+'</small>':'')+'</article>'}).join("")+'</section>'}).join("")+'</div></div></div>';
+ '<div class="vo-effective-days">'+(r.days||[]).map(function(d){return '<section><div class="vo-day-head"><strong>'+voEsc(d.name)+'</strong><span>'+d.exercises.length+' ejercicios</span></div>'+d.exercises.map(function(ex){const fs=voFields(ex);return '<article><div><strong>'+voEsc(ex.name)+'</strong><span>'+fs.series+' series · '+fs.repsMin+(fs.repsMax!==fs.repsMin?'–'+fs.repsMax:'')+' reps'+(fs.loadMode!=="none"?' · '+(fs.loadMode==="suggested"?'~':'')+(typeof toDisplayWeight==="function"?toDisplayWeight(fs.weight):fs.weight)+' '+(typeof unitLabel==="function"?unitLabel():"kg"):'')+' · '+voEsc(fs.effortMode.toUpperCase())+' '+fs.effortTarget+' · '+fs.rest+' s</span></div>'+(ex.note?'<small>'+voEsc(ex.note)+'</small>':'')+'</article>'}).join("")+'</section>'}).join("")+'</div></div></div>';
  if(window.lucide)lucide.createIcons();document.getElementById("vo-close-effective").onclick=function(){voOpenDetail(a.id)};
  const sel=document.getElementById("vo-effective-routine");if(sel)sel.onchange=function(){voEffectivePreview(a.id,sel.value)};
  const ws=document.getElementById("vo-effective-week");if(ws)ws.onchange=function(){voEffectivePreview(a.id,null,+ws.value)};
