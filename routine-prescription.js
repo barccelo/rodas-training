@@ -106,7 +106,8 @@ function pxEditor(ri,ei){
  '<button class="primary px-save" id="px-save">Guardar cambios</button></div></div>';
  document.getElementById("px-default-rest").value=String(p.rest||90);
  const metricType=document.getElementById("px-metric-type"),distanceUnit=document.getElementById("px-distance-unit");
- if(metricType)metricType.onchange=function(){p.metricType=metricType.value;if(distanceUnit)distanceUnit.disabled=metricType.value!=="distance";pxEditor(ri,ei)};
+ if(metricType)metricType.onchange=function(){pxCaptureDraft(e);p.metricType=metricType.value;pxMarkDirty(r);if(distanceUnit)distanceUnit.disabled=metricType.value!=="distance";pxEditor(ri,ei)};
+ if(distanceUnit)distanceUnit.onchange=function(){pxCaptureDraft(e);p.distanceUnit=distanceUnit.value;pxMarkDirty(r);pxEditor(ri,ei)};
  if(window.lucide)lucide.createIcons();
  pxBindEditor(r,day,e,ri,ei)
 }
@@ -227,6 +228,7 @@ function pxBindEditor(r,day,e,ri,ei){
  document.getElementById("px-save").onclick=function(){
   pxReadDefault(e.prescription);e.note=document.getElementById("px-exercise-note").value.trim();
   e.sets.forEach(function(s,si){pxReadSet(e,s,si)});
+  if(e.prescription.loadBasis==="bodyweight"||e.prescription.loadBasis==="none")e.sets.forEach(function(s){const m=pxSetMeta(s);m.loadMode="none";m.weight=0;s[2]=0});
   const pr=e.prescription.progression,st=strategy.value;pr.strategy=st;
   if(["double","load","effort"].indexOf(st)>=0)pr.increment=Math.max(0,pxNum(document.getElementById("px-progression-increment").value,2.5));
   if(st==="custom")pr.custom=document.getElementById("px-progression-custom").value.trim();
