@@ -208,13 +208,21 @@ function voPublish(type,id){
  document.getElementById("vo-publish-only").onclick=function(){commit(false)};
  document.getElementById("vo-publish-apply").onclick=function(){commit(document.getElementById("vo-update-compatible").checked)}
 }
+function voConflictCard(a,c,i){
+ const p=voPathParts(c.path),ex=voFindExercise(a.baseSnapshot,p.rid,p.did,p.ek);
+ const name=ex?ex.name:(p.ek==="@day"?"Día de entrenamiento":p.ek);
+ const structural=p.field==="exists";
+ const detail=structural?"La nueva plantilla elimina o reestructura un elemento que contiene personalizaciones.":"Plantilla: "+voDisplay(p.field,c.newValue)+" · Personalizado: "+voDisplay(p.field,c.override);
+ const keepLabel=structural?"Conservar en esta asignación":"Mantener personalizado";
+ return '<article class="vo-conflict-card"><div><strong>'+voEsc(name)+' · '+voEsc(VO_LABELS[p.field]||p.field)+'</strong><span>'+voEsc(detail)+'</span></div><select data-vo-decision="'+i+'"><option value="keep">'+voEsc(keepLabel)+'</option><option value="template">Usar nueva plantilla</option></select></article>'
+}
 function voReviewPending(id){
  const a=voAssignment(id);if(!a||!a.pendingUpdate)return;const pu=a.pendingUpdate,conf=pu.conflicts||[];
  if(!conf.length){
   document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="vo-review-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">Actualización disponible</div><h2>Versión '+pu.version+'</h2></div><button class="icon-btn" id="vo-close-review">'+ic("x")+'</button></div><div class="vo-all-clear">'+ic("check-circle-2")+' No hay conflictos con tus personalizaciones.</div><button class="primary vo-save" id="vo-accept-clean">Actualizar asignación</button></div></div>';
   if(window.lucide)lucide.createIcons();document.getElementById("vo-close-review").onclick=function(){voOpenDetail(id)};document.getElementById("vo-accept-clean").onclick=function(){voApplyPending(a,{});voOpenDetail(id)};return
  }
- document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="vo-review-bg"><div class="sheet vo-review-sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">Actualizar a v'+pu.version+'</div><h2>Resolver conflictos</h2></div><button class="icon-btn" id="vo-close-review">'+ic("x")+'</button></div><div class="vo-review-help">Elige qué valor debe quedar en cada campo. Por defecto conservamos la personalización individual.</div><div class="vo-conflict-list">'+conf.map(function(c,i){const p=voPathParts(c.path),ex=voFindExercise(a.baseSnapshot,p.rid,p.did,p.ek),name=ex?ex.name:p.ek;return '<article class="vo-conflict-card"><div><strong>'+voEsc(name)+' · '+voEsc(VO_LABELS[p.field]||p.field)+'</strong><span>Plantilla: '+voEsc(voDisplay(p.field,c.newValue))+' · Personalizado: '+voEsc(voDisplay(p.field,c.override))+'</span></div><select data-vo-decision="'+i+'"><option value="keep">Mantener personalizado</option><option value="template">Usar nueva plantilla</option></select></article>'}).join("")+'</div><button class="primary vo-save" id="vo-apply-review">Aplicar actualización</button></div></div>';
+ document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="vo-review-bg"><div class="sheet vo-review-sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">Actualizar a v'+pu.version+'</div><h2>Resolver conflictos</h2></div><button class="icon-btn" id="vo-close-review">'+ic("x")+'</button></div><div class="vo-review-help">Elige qué valor debe quedar en cada campo. Por defecto conservamos la personalización individual.</div><div class="vo-conflict-list">'+conf.map(function(c,i){return voConflictCard(a,c,i)}).join("")+'</div><button class="primary vo-save" id="vo-apply-review">Aplicar actualización</button></div></div>';
  if(window.lucide)lucide.createIcons();document.getElementById("vo-close-review").onclick=function(){voOpenDetail(id)};
  document.getElementById("vo-apply-review").onclick=function(){const decisions={};document.querySelectorAll("[data-vo-decision]").forEach(function(s){decisions[+s.dataset.voDecision]=s.value});voApplyPending(a,decisions);voOpenDetail(id)}
 }
