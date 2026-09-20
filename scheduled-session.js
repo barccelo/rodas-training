@@ -139,14 +139,14 @@ function ssFinish(){
 function ssFormatValue(field,v){
  if(field==="loadMode")return v==="fixed"?"Prescrita":v==="suggested"?"Orientativa":"Sin carga";
  if(field==="effortMode")return v==="rir"?"RIR":v==="rpe"?"RPE":"Sin objetivo";
- if(field==="weight")return Number(v||0)+" kg";if(field==="rest")return Number(v||0)+" s";return String(v==null?"—":v)
+ if(field==="weight"){const shown=typeof toDisplayWeight==="function"?toDisplayWeight(Number(v||0)):Number(v||0),u=typeof unitLabel==="function"?unitLabel():"kg";return shown+" "+u}if(field==="rest")return Number(v||0)+" s";return String(v==null?"—":v)
 }
 const SS_LABELS={series:"Series",repsMin:"Reps mín.",repsMax:"Reps máx.",loadMode:"Carga",weight:"Peso",effortMode:"Esfuerzo",effortTarget:"Objetivo",rest:"Descanso",note:"Nota"};
 function ssField(ex,field,base,node){
- const custom=Object.prototype.hasOwnProperty.call(node,field),value=custom?node[field]:base;let input="";
+ const custom=Object.prototype.hasOwnProperty.call(node,field),value=custom?node[field]:base,shownValue=field==="weight"&&typeof toDisplayWeight==="function"?toDisplayWeight(Number(value||0)):value;let input="";
  if(field==="loadMode")input='<select data-ss-field="'+field+'"><option value="none" '+(value==="none"?"selected":"")+'>Sin carga</option><option value="fixed" '+(value==="fixed"?"selected":"")+'>Prescrita</option><option value="suggested" '+(value==="suggested"?"selected":"")+'>Orientativa</option></select>';
  else if(field==="effortMode")input='<select data-ss-field="'+field+'"><option value="none" '+(value==="none"?"selected":"")+'>Sin objetivo</option><option value="rir" '+(value==="rir"?"selected":"")+'>RIR</option><option value="rpe" '+(value==="rpe"?"selected":"")+'>RPE</option></select>';
- else input='<input data-ss-field="'+field+'" '+(field==="note"?'':'inputmode="decimal"')+' value="'+ssEsc(value)+'">';
+ else input='<input data-ss-field="'+field+'" '+(field==="note"?'':'inputmode="decimal"')+' value="'+ssEsc(shownValue)+'">';
  return '<label class="ss-field '+(custom?"custom":"")+'"><span>'+SS_LABELS[field]+(custom?' <b>Solo esta sesión</b>':'')+'</span>'+input+'<button type="button" data-ss-reset="'+field+'" '+(custom?"":"disabled")+'>'+ic("rotate-ccw")+'</button></label>'
 }
 function ssEditOccurrence(a,occ){
@@ -160,7 +160,7 @@ function ssEditOccurrence(a,occ){
  document.getElementById("ss-save-edit").onclick=function(){
   document.querySelectorAll(".ss-ex-card").forEach(function(card){
    const key=card.dataset.ssEx,baseEx=(day.exercises||[]).find(function(e){return ssExerciseKey(e)===key}),base=ssFields(baseEx),node=root[key]||(root[key]={});
-   card.querySelectorAll("[data-ss-field]").forEach(function(input){const f=input.dataset.ssField;let v=input.value;if(["series","repsMin","repsMax","weight","effortTarget","rest"].indexOf(f)>=0){const n=Number(String(v).replace(",","."));v=Number.isFinite(n)?n:base[f]}if(ssSame(v,base[f]))delete node[f];else node[f]=v});
+   card.querySelectorAll("[data-ss-field]").forEach(function(input){const f=input.dataset.ssField;let v=input.value;if(["series","repsMin","repsMax","weight","effortTarget","rest"].indexOf(f)>=0){const n=Number(String(v).replace(",","."));v=Number.isFinite(n)?n:base[f];if(f==="weight"&&typeof fromDisplayWeight==="function")v=fromDisplayWeight(v)}if(ssSame(v,base[f]))delete node[f];else node[f]=v});
    if(!Object.keys(node).length)delete root[key]
   });ssSaveAssignments();ssOpenOccurrence(a,occ)
  }
