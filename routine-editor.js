@@ -9,7 +9,7 @@ function markRoutineDirty(r){
 }
 function ensureDays(r){
  if(!Array.isArray(r.days)||!r.days.length){
-  r.days=[{id:"day-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),name:r.name||"Día 1",exercises:Array.isArray(r.exercises)?r.exercises:[]}];
+  r.days=[{id:"day-"+Date.now()+"-"+Math.random().toString(36).slice(2,6),name:r.personal?"Día 1":(r.name||"Día 1"),exercises:Array.isArray(r.exercises)?r.exercises:[]}];
  }
  r.days.forEach(function(d,i){
   if(!d.id)d.id="day-"+Date.now()+"-"+i;
@@ -152,7 +152,20 @@ openRoutineExerciseSheet=function(ri,ei){
   e.sets.push([String(e.sets.length+1),"—",last[2],last[3],false,"",last[6]||"Efectiva"]);markRoutineDirty(r);clearRest();openRoutineExerciseSheet(ri,ei)
  };
  document.querySelectorAll("[data-re-delete-set]").forEach(function(btn){btn.onclick=function(){if(e.sets.length<=1)return;e.sets.splice(+btn.dataset.reDeleteSet,1);e.sets.forEach(function(s,i){if(s[0]!=="W")s[0]=String(i+1)});markRoutineDirty(r);clearRest();openRoutineExerciseSheet(ri,ei)}});
- document.getElementById("re-toggle-group").onclick=function(){if(e.group){delete e.group;delete e.groupType}else{e.group="A";e.groupType="superset"}markRoutineDirty(r);clearRest();openRoutineExerciseSheet(ri,ei)};
+ document.getElementById("re-toggle-group").onclick=function(){
+  if(e.group){
+    const group=e.group;
+    day.exercises.forEach(function(x){if(x.group===group){delete x.group;delete x.groupType}});
+  }else{
+    const mate=day.exercises[ei+1]||day.exercises[ei-1];
+    if(!mate){alert("Agrega al menos otro ejercicio para crear una superserie.");return}
+    const used={};day.exercises.forEach(function(x){if(x.group)used[x.group]=1});
+    let group="A";
+    for(let c=65;c<=90;c++){const candidate=String.fromCharCode(c);if(!used[candidate]){group=candidate;break}}
+    e.group=group;e.groupType="superset";mate.group=group;mate.groupType="superset";
+  }
+  markRoutineDirty(r);clearRest();openRoutineExerciseSheet(ri,ei)
+};
  document.getElementById("re-save-exercise").onclick=function(){
   e.prescription.rir=Math.max(0,Math.min(10,+document.getElementById("re-rir").value||0));
   e.prescription.rest=+document.getElementById("re-rest").value||90;
@@ -169,18 +182,18 @@ openRoutineExerciseSheet=function(ri,ei){
  };
 };
 
-const originalStartRoutine=startRoutine;
 startRoutine=function(index){
  const r=routineCatalog[index];
  if(!r)return;
+ if(state.startedAt&&!confirm("Ya hay un entrenamiento en curso. ¿Reemplazarlo?"))return;
  const di=(state.routineDetail===index)?currentDayIndex(index):0;
  const days=ensureDays(r),day=days[di];
- const originalExercises=r.exercises,originalName=r.name;
- r.exercises=day.exercises;
- if(days.length>1)r.name=originalName+" · "+day.name;
- originalStartRoutine(index);
- r.name=originalName;
- r.exercises=originalExercises;
+ clearInterval(state.workoutTimer);
+ state.activeRoutineName=days.length>1?r.name+" · "+day.name:r.name;
+ state.exercises=cloneExercises(day.exercises);
+ normalizeWorkoutData();
+ state.startedAt=null;state.elapsed=0;state.activeExercise=0;
+ clearSavedWorkout();startWorkout();state.tab="workout";state.routineDetail=null;render()
 };
 
 function previewRoutineAllDays(ri){
