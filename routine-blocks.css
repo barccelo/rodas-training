@@ -1,0 +1,22 @@
+/* Real routine blocks */
+.rb-editor-head{align-items:flex-end}
+.rb-select-mode{border:0;background:transparent;color:var(--accent);font-size:11px;font-weight:750;display:flex;align-items:center;gap:6px;padding:4px 1px 10px}.rb-select-mode svg{width:15px}
+.rb-selection-bar{padding:12px;border-radius:16px;background:color-mix(in srgb,var(--accent) 8%,var(--surface));margin-bottom:10px}
+.rb-selection-bar>div:first-child{display:flex;align-items:center;justify-content:space-between}.rb-selection-bar strong{font-size:11px}.rb-selection-bar>div:first-child button{border:0;background:transparent;color:var(--accent);font-size:10px;font-weight:700}
+.rb-selection-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.rb-selection-actions button{min-height:38px;border:0;border-radius:10px;background:var(--surface);color:var(--text);font-size:9px;font-weight:750;display:flex;align-items:center;justify-content:center;gap:4px}.rb-selection-actions button:disabled{opacity:.35}.rb-selection-actions svg{width:13px}
+.rb-block-list{display:grid;gap:11px}
+.rb-block{border:1px solid var(--line);border-radius:17px;background:var(--surface);overflow:hidden}
+.rb-block.superset,.rb-block.supraset{border-color:color-mix(in srgb,var(--accent) 34%,var(--line))}
+.rb-block-head{min-height:52px;padding:9px 10px 9px 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface-2);border-bottom:1px solid var(--line)}
+.rb-block-title{display:flex;align-items:center;gap:9px;min-width:0}.rb-block-icon{width:32px;height:32px;border-radius:10px;background:var(--soft);color:var(--secondary);display:grid;place-items:center;flex:none}.rb-block-icon.superset,.rb-block-icon.supraset{background:color-mix(in srgb,var(--accent) 11%,var(--soft));color:var(--accent)}.rb-block-icon svg{width:15px}
+.rb-block-title>div{min-width:0;display:flex;flex-direction:column;gap:3px}.rb-block-title strong{font-size:11px}.rb-block-title small{font-size:8px;color:var(--secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:330px}
+.rb-block-actions,.rb-ex-actions{display:flex;gap:3px}.rb-block-actions button,.rb-ex-actions button{width:29px;height:29px;border:0;border-radius:8px;background:var(--soft);color:var(--secondary);display:grid;place-items:center}.rb-block-actions button:disabled,.rb-ex-actions button:disabled{opacity:.25}.rb-block-actions svg,.rb-ex-actions svg{width:13px}
+.rb-block-body{padding:6px}
+.rb-exercise-row{min-height:58px;padding:8px 6px;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--line);border-radius:10px}.rb-exercise-row:last-child{border-bottom:0}.rb-exercise-row.selected{background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.rb-select{width:30px;height:30px;border:0;border-radius:9px;background:var(--soft);color:var(--secondary);display:grid;place-items:center;flex:none}.rb-select.selected{background:var(--accent);color:white}.rb-select svg{width:14px}
+.rb-add-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:11px}.rb-add-row .routine-add-exercise{height:44px}.rb-add-block{height:44px;border:1px dashed color-mix(in srgb,var(--accent) 42%,var(--line));border-radius:14px;background:transparent;color:var(--accent);font-weight:750;display:flex;align-items:center;justify-content:center;gap:6px}.rb-add-block svg{width:16px}
+.rb-settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.rb-sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}
+.rb-picker-title{margin:16px 2px 7px;font-size:10px;color:var(--secondary);font-weight:750}.rb-picker{display:grid;gap:6px;max-height:300px;overflow:auto}.rb-picker label{display:flex;align-items:center;gap:9px;padding:10px 11px;border-radius:11px;background:var(--surface-2);font-size:11px}.rb-picker input{accent-color:var(--accent);width:17px;height:17px}
+.rb-create-sheet{max-height:min(86vh,720px);overflow-y:auto}
+.rb-workout-group span{line-height:1.35}
+@media(max-width:390px){.rb-selection-actions{grid-template-columns:1fr}.rb-add-row,.rb-sheet-actions{grid-template-columns:1fr}.rb-block-title small{max-width:205px}.rb-ex-actions{display:none}}
