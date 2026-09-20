@@ -175,6 +175,18 @@ function pxProgressNote(strategy){
  if(strategy==="effort")return "Usa el RIR/RPE registrado para sugerir mantener o aumentar carga.";
  return ""
 }
+function pxCaptureDraft(e){
+ if(!document.getElementById("px-default-reps-min"))return;
+ pxReadDefault(e.prescription);
+ const note=document.getElementById("px-exercise-note");if(note)e.note=note.value.trim();
+ e.sets.forEach(function(set,si){if(document.querySelector("[data-px-reps-min='"+si+"']"))pxReadSet(e,set,si)});
+ const strategy=document.getElementById("px-progression-strategy");
+ if(strategy){
+  const pr=e.prescription.progression,st=strategy.value;pr.strategy=st;
+  const inc=document.getElementById("px-progression-increment");if(inc&&["double","load","effort"].indexOf(st)>=0)pr.increment=Math.max(0,pxNum(inc.value,pr.increment||2.5));
+  const custom=document.getElementById("px-progression-custom");if(custom&&st==="custom")pr.custom=custom.value.trim()
+ }
+}
 function pxBindEditor(r,day,e,ri,ei){
  document.getElementById("px-close-editor").onclick=clearRest;
  document.getElementById("px-editor-bg").onclick=function(ev){if(ev.target.id==="px-editor-bg")clearRest()};
@@ -185,15 +197,15 @@ function pxBindEditor(r,day,e,ri,ei){
  }
  strategy.onchange=updateProgressUI;updateProgressUI();
  document.getElementById("px-apply-defaults").onclick=function(){
-  pxReadDefault(e.prescription);
+  pxCaptureDraft(e);
   e.sets.forEach(function(s){const m=pxSetMeta(s);m.repsMin=e.prescription.repsMin;m.repsMax=e.prescription.repsMax;m.weight=e.prescription.weight;m.loadMode=e.prescription.loadMode;m.effortMode="inherit";m.effortTarget=null;s[2]=m.loadMode==="none"?0:m.weight;s[3]=m.repsMax});
   pxMarkDirty(r);pxEditor(ri,ei)
  };
  document.getElementById("px-add-set").onclick=function(){pxReadDefault(e.prescription);e.sets.forEach(function(s,si){pxReadSet(e,s,si)});pxAddSet(r,day,e);pxEditor(ri,ei)};
  document.querySelectorAll("[data-px-delete-set]").forEach(function(btn){btn.onclick=function(){pxDeleteSet(r,day,e,+btn.dataset.pxDeleteSet);pxEditor(ri,ei)}});
- document.querySelectorAll("[data-px-technique]").forEach(function(sel){sel.onchange=function(){const si=+sel.dataset.pxTechnique,m=pxSetMeta(e.sets[si]);m.technique=pxDefaultTechnique(sel.value);pxMarkDirty(r);pxEditor(ri,ei)}});
+ document.querySelectorAll("[data-px-technique]").forEach(function(sel){sel.onchange=function(){pxCaptureDraft(e);const si=+sel.dataset.pxTechnique,m=pxSetMeta(e.sets[si]);m.technique=pxDefaultTechnique(sel.value);pxMarkDirty(r);pxEditor(ri,ei)}});
  document.querySelectorAll("[data-px-tech-settings]").forEach(function(btn){btn.onclick=function(){
-  e.sets.forEach(function(s,si){pxReadSet(e,s,si)});pxTechniqueSheet(r,day,e,ri,ei,+btn.dataset.pxTechSettings)
+  pxCaptureDraft(e);pxTechniqueSheet(r,day,e,ri,ei,+btn.dataset.pxTechSettings)
  }});
  document.getElementById("px-save").onclick=function(){
   pxReadDefault(e.prescription);e.note=document.getElementById("px-exercise-note").value.trim();
@@ -225,7 +237,7 @@ exerciseCard=function(e,ei){
  let html=pxBaseExerciseCard(e,ei);
  const line='<div class="px-workout-prescription">'+ic("target")+' '+pxEsc(pxPrescriptionLine(e))+'</div>';
  html=html.replace('<div class="note">',line+'<div class="note">');
- const techniques=e.sets.map(function(s,si){const t=pxSetMeta(s).technique,label=pxTechniqueCompact(t);return label?'<div class="px-workout-tech">'+ic("sparkles")+' <strong>Serie '+(si+1)+':</strong> '+pxEsc(label)+'</div>':""}).filter(Boolean).join("");
+ const techniques=e.sets.map(function(s,si){const m=pxSetMeta(s),label=pxTechniqueCompact(m.technique),parts=[];if(label)parts.push(label);if(m.note)parts.push(m.note);return parts.length?'<div class="px-workout-tech">'+ic(label?"sparkles":"sticky-note")+' <strong>Serie '+(si+1)+':</strong> '+pxEsc(parts.join(" · "))+'</div>':""}).filter(Boolean).join("");
  if(techniques)html=html.replace('<div class="sets">',techniques+'<div class="sets">');
  return html
 };
