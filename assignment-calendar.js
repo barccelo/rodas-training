@@ -136,21 +136,41 @@ function acOpenDetail(id){
  '<div class="ac-assignment-controls"><button class="secondary" id="ac-toggle-pause">'+ic(a.status==="paused"?"play":"pause")+' '+(a.status==="paused"?"Reanudar":"Pausar")+'</button><button class="secondary" id="ac-finish-assignment">'+ic("flag")+' Finalizar</button></div></div></div>';
  if(window.lucide)lucide.createIcons();
  document.getElementById("ac-close-detail").onclick=clearRest;document.getElementById("ac-detail-bg").onclick=function(ev){if(ev.target.id==="ac-detail-bg")clearRest()};
- document.getElementById("ac-toggle-pause").onclick=function(){a.status=a.status==="paused"?"active":"paused";acSave();clearRest();render()};
+ document.getElementById("ac-toggle-pause").onclick=function(){
+  if(a.status==="paused"){acOpenResume(a);return}
+  a.status="paused";a.pausedAt=acToday();acSave();clearRest();render()
+ };
  document.getElementById("ac-finish-assignment").onclick=function(){if(confirm("¿Finalizar esta asignación?")){a.status="completed";acSave();clearRest();render()}};
  document.querySelectorAll("[data-ac-session]").forEach(function(b){b.onclick=function(){acOpenSessionMenu(a,b.dataset.acSession)}});
  document.querySelectorAll("[data-ac-sequence-action]").forEach(function(b){b.onclick=function(){acAdvanceSequence(a,b.dataset.acSequenceAction);acOpenDetail(a.id)}});
 }
 function acFixedDetail(a){
  const today=acToday(),sessions=(a.sessions||[]).filter(function(s){return s.date>=acAddDays(today,-7)&&s.date<=acAddDays(today,21)}).slice(0,12);
- return '<div class="ac-detail-section"><div class="ac-detail-title"><strong>Agenda</strong><span>−7 a +21 días</span></div><div class="ac-session-list">'+sessions.map(function(s){return '<button class="ac-session '+acSessionClass(s)+'" data-ac-session="'+s.id+'"><div class="ac-session-date"><strong>'+acDateLabel(s.date).split(" ")[0]+'</strong><span>'+acDateLabel(s.date).split(" ").slice(1).join(" ")+'</span></div><div class="ac-session-copy"><strong>'+acEsc(s.name)+'</strong><small>'+(s.phase?acEsc(s.phase)+" · ":"")+'Semana '+s.week+'</small></div><span class="ac-session-status">'+acSessionStatus(s)+'</span>'+ic("chevron-right")+'</button>'}).join("")+'</div></div>'
+ return (a.status==="paused"?'<div class="ac-pause-note">'+ic("pause")+' Calendario pausado desde '+acDateLabel(a.pausedAt||today)+'. No se contabilizan atrasos durante la pausa.</div>':"")+
+ '<div class="ac-detail-section"><div class="ac-detail-title"><strong>Agenda</strong><span>−7 a +21 días</span></div><div class="ac-session-list">'+sessions.map(function(s){const cls=a.status==="paused"?"paused":acSessionClass(s),label=a.status==="paused"&&s.status!=="completed"&&s.status!=="skipped"?"Pausada":acSessionStatus(s);return '<button class="ac-session '+cls+'" data-ac-session="'+s.id+'" '+(a.status==="paused"?'disabled':'')+'><div class="ac-session-date"><strong>'+acDateLabel(s.date).split(" ")[0]+'</strong><span>'+acDateLabel(s.date).split(" ").slice(1).join(" ")+'</span></div><div class="ac-session-copy"><strong>'+acEsc(s.name)+'</strong><small>'+(s.phase?acEsc(s.phase)+" · ":"")+'Semana '+s.week+'</small></div><span class="ac-session-status">'+label+'</span>'+ic("chevron-right")+'</button>'}).join("")+'</div></div>'
 }
 function acSequenceDetail(a){
- const next=acSequenceWorkout(a),history=(a.sequenceHistory||[]).slice().reverse().slice(0,8);
- return '<div class="ac-sequence-box"><div><span>Objetivo semanal</span><strong>'+a.frequency+' sesiones</strong></div><div><span>Posición</span><strong>Sesión '+((a.sequenceStep||0)+1)+'</strong></div></div>'+
- '<div class="ac-sequence-actions"><button class="primary" data-ac-sequence-action="completed">'+ic("check")+' Completar y avanzar</button><button class="secondary" data-ac-sequence-action="skipped">'+ic("skip-forward")+' Omitir y avanzar</button></div>'+
+ const next=acSequenceWorkout(a),history=(a.sequenceHistory||[]).slice().reverse().slice(0,8),disabled=a.status==="paused"?"disabled":"";
+ return (a.status==="paused"?'<div class="ac-pause-note">'+ic("pause")+' Secuencia pausada desde '+acDateLabel(a.pausedAt||acToday())+'. El próximo entrenamiento no avanza.</div>':"")+
+ '<div class="ac-sequence-box"><div><span>Objetivo semanal</span><strong>'+a.frequency+' sesiones</strong></div><div><span>Posición</span><strong>Sesión '+((a.sequenceStep||0)+1)+'</strong></div></div>'+
+ '<div class="ac-sequence-actions"><button class="primary" data-ac-sequence-action="completed" '+disabled+'>'+ic("check")+' Completar y avanzar</button><button class="secondary" data-ac-sequence-action="skipped" '+disabled+'>'+ic("skip-forward")+' Omitir y avanzar</button></div>'+
  '<div class="ac-detail-section"><div class="ac-detail-title"><strong>Actividad reciente</strong></div><div class="ac-sequence-history">'+(history.length?history.map(function(h){return '<div><span class="'+h.status+'">'+ic(h.status==="completed"?"check":"skip-forward")+'</span><p><strong>'+acEsc(h.name)+'</strong><small>'+acDateLabel(h.date)+' · '+(h.status==="completed"?"Completada":"Omitida")+'</small></p></div>'}).join(""):'<div class="ac-history-empty">Todavía no hay sesiones registradas.</div>')+'</div></div>'
 }
+function acOpenResume(a){
+ const pausedAt=a.pausedAt||acToday(),days=Math.max(0,acDiffDays(pausedAt,acToday()));
+ document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="ac-resume-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">'+acEsc(a.traineeName)+'</div><h2>Reanudar asignación</h2></div><button class="icon-btn" id="ac-close-resume">'+ic("x")+'</button></div><div class="ac-resume-summary">'+ic("calendar-range")+' Pausa de '+days+' día'+(days===1?"":"s")+'</div><div class="ac-resume-options"><button id="ac-resume-shift"><strong>Desplazar calendario</strong><span>Mueve las sesiones pendientes '+days+' día'+(days===1?"":"s")+'.</span></button><button id="ac-resume-keep"><strong>Mantener fechas originales</strong><span>Reanuda hoy sin mover las sesiones.</span></button></div></div></div>';
+ if(window.lucide)lucide.createIcons();
+ document.getElementById("ac-close-resume").onclick=function(){acOpenDetail(a.id)};
+ document.getElementById("ac-resume-bg").onclick=function(ev){if(ev.target.id==="ac-resume-bg")acOpenDetail(a.id)};
+ function finish(shift){
+  if(shift&&a.mode==="fixed"&&days>0)(a.sessions||[]).forEach(function(s){if((s.status==="planned"||s.status==="rescheduled")&&s.date>=pausedAt){const from=s.date;s.date=acAddDays(s.date,days);(s.history||(s.history=[])).push({type:"pause-shift",from:from,to:s.date,date:acToday()})}});
+  if(Array.isArray(a.sessions))a.sessions.sort(function(x,y){return x.date.localeCompare(y.date)});
+  a.status="active";a.resumedAt=acToday();delete a.pausedAt;acSave();acOpenDetail(a.id)
+ }
+ document.getElementById("ac-resume-shift").onclick=function(){finish(true)};
+ document.getElementById("ac-resume-keep").onclick=function(){finish(false)}
+}
+
 function acAdvanceSequence(a,status){
  if(a.status==="paused"||a.status==="completed")return;
  const info=acSequenceWorkout(a);if(!Array.isArray(a.sequenceHistory))a.sequenceHistory=[];
