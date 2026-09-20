@@ -93,7 +93,7 @@ function openCreateProgramSheet(){
 }
 function openAddPhaseSheet(pi){
  const p=programCatalog[pi];
- const routineOptions=routineCatalog.map(function(r){return '<option value="'+esc(r.id)+'">'+esc(r.name)+'</option>'}).join("");
+ const routineOptions=routineCatalog.filter(function(r){return !r.archived}).map(function(r){return '<option value="'+esc(r.id)+'">'+esc(r.name)+'</option>'}).join("");
  document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="rp-phase-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">'+esc(p.name)+'</div><h2>Añadir fase</h2></div><button class="icon-btn" id="rp-close-phase">'+ic("x")+'</button></div><label class="rp-field"><span>Nombre</span><input id="rp-phase-name" placeholder="Ej. Volumen"></label><div class="rp-field-grid"><label class="rp-field"><span>Desde semana</span><input id="rp-phase-from" type="number" min="1" max="'+p.duration+'" value="1"></label><label class="rp-field"><span>Hasta semana</span><input id="rp-phase-to" type="number" min="1" max="'+p.duration+'" value="'+p.duration+'"></label></div><label class="rp-field"><span>Tipo</span><select id="rp-phase-type"><option>Normal</option><option>Descarga</option><option>Evaluación</option><option>Transición</option></select></label><label class="rp-field"><span>Rutina</span><select id="rp-phase-routine">'+routineOptions+'</select></label><button class="primary rp-sheet-primary" id="rp-save-phase">Añadir fase</button></div></div>';
  if(window.lucide)lucide.createIcons();
  document.getElementById("rp-close-phase").onclick=clearRest;
@@ -111,7 +111,7 @@ function openProgramMenu(pi){
  if(window.lucide)lucide.createIcons();
  document.getElementById("rp-close-program-menu").onclick=clearRest;
  document.getElementById("rp-program-menu-bg").onclick=function(ev){if(ev.target.id==="rp-program-menu-bg")clearRest()};
- document.getElementById("rp-duplicate-program").onclick=function(){const copy=JSON.parse(JSON.stringify(p));copy.id="program-"+Date.now();copy.name=p.name+" · copia";copy.status="Borrador";copy.version=0;copy.active=false;programCatalog.push(copy);rpState.programDetail=programCatalog.length-1;clearRest();render()};
+ document.getElementById("rp-duplicate-program").onclick=function(){if(window.RodasLibraryLifecycle&&window.RodasLibraryLifecycle.duplicate){clearRest();window.RodasLibraryLifecycle.duplicate("program",p.id);return}const copy=JSON.parse(JSON.stringify(p));copy.id="program-"+Date.now();copy.name=p.name+" · copia";copy.status="Borrador";copy.version=0;copy.active=false;programCatalog.push(copy);rpState.programDetail=programCatalog.length-1;clearRest();render()};
  document.getElementById("rp-toggle-program").onclick=function(){p.active=!p.active;clearRest();render()}
 }
 function openPhaseMenu(pi,phaseIndex){
