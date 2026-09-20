@@ -104,17 +104,22 @@ function voDiff(oldSnap,newSnap){
  const a=voFlatten(oldSnap),b=voFlatten(newSnap),keys={};Object.keys(a).forEach(function(k){keys[k]=1});Object.keys(b).forEach(function(k){keys[k]=1});
  return Object.keys(keys).filter(function(k){return !voSame(a[k],b[k])}).map(function(k){return {path:k,oldValue:a[k],newValue:b[k]}})
 }
+function voSubstitutionPaths(a){
+ const out={},root=a.substitutions||{};
+ Object.keys(root).forEach(function(rid){Object.keys(root[rid]||{}).forEach(function(did){Object.keys(root[rid][did]||{}).forEach(function(ek){out[rid+"/"+did+"/"+ek+"/exists"]=root[rid][did][ek]})})});
+ return out
+}
 function voConflictChanges(a,newSnap){
- const changes=voDiff(a.baseSnapshot,newSnap),over=voOverridePaths(a);
+ const changes=voDiff(a.baseSnapshot,newSnap),over=voOverridePaths(a),subs=voSubstitutionPaths(a);
  return changes.filter(function(ch){
   if(over[ch.path]!==undefined)return true;
   if(ch.path.endsWith("/exists")){
     const parts=ch.path.split("/");
     const prefix=parts[2]==="@day"?(parts[0]+"/"+parts[1]+"/"):ch.path.slice(0,-"exists".length);
-    return Object.keys(over).some(function(p){return p.indexOf(prefix)===0})
+    return Object.keys(over).some(function(p){return p.indexOf(prefix)===0})||Object.keys(subs).some(function(p){return p.indexOf(prefix)===0})
   }
   return false
- }).map(function(ch){return {path:ch.path,oldValue:ch.oldValue,newValue:ch.newValue,override:over[ch.path]}})
+ }).map(function(ch){return {path:ch.path,oldValue:ch.oldValue,newValue:ch.newValue,override:over[ch.path]!==undefined?over[ch.path]:subs[ch.path]}})
 }
 function voPathParts(path){const p=path.split("/");return {rid:p[0],did:p[1],ek:p[2],field:p[3]}}
 function voFindExercise(snap,rid,did,ek){
@@ -300,10 +305,16 @@ function voPreserveStructure(target,oldSnap,path){
  const has=(newDay.exercises||[]).some(function(e){return voExerciseKey(e)===p.ek});if(!has)newDay.exercises.push(voClone(oldEx))
 }
 function voDropExerciseOverrides(a,rid,did,ek){
- if(!a.overrides||!a.overrides[rid]||!a.overrides[rid][did])return;
- if(ek==="@day")delete a.overrides[rid][did];else delete a.overrides[rid][did][ek];
- if(a.overrides[rid]&&a.overrides[rid][did]&&!Object.keys(a.overrides[rid][did]).length)delete a.overrides[rid][did];
- if(a.overrides[rid]&&!Object.keys(a.overrides[rid]).length)delete a.overrides[rid]
+ if(a.overrides&&a.overrides[rid]&&a.overrides[rid][did]){
+  if(ek==="@day")delete a.overrides[rid][did];else delete a.overrides[rid][did][ek];
+  if(a.overrides[rid][did]&&!Object.keys(a.overrides[rid][did]).length)delete a.overrides[rid][did];
+  if(a.overrides[rid]&&!Object.keys(a.overrides[rid]).length)delete a.overrides[rid]
+ }
+ if(a.substitutions&&a.substitutions[rid]&&a.substitutions[rid][did]){
+  if(ek==="@day")delete a.substitutions[rid][did];else delete a.substitutions[rid][did][ek];
+  if(a.substitutions[rid][did]&&!Object.keys(a.substitutions[rid][did]).length)delete a.substitutions[rid][did];
+  if(a.substitutions[rid]&&!Object.keys(a.substitutions[rid]).length)delete a.substitutions[rid]
+ }
 }
 function voApplyPending(a,decisions){
  const pu=a.pendingUpdate;if(!pu)return;
