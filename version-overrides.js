@@ -226,11 +226,43 @@ function voReviewPending(id){
  if(window.lucide)lucide.createIcons();document.getElementById("vo-close-review").onclick=function(){voOpenDetail(id)};
  document.getElementById("vo-apply-review").onclick=function(){const decisions={};document.querySelectorAll("[data-vo-decision]").forEach(function(s){decisions[+s.dataset.voDecision]=s.value});voApplyPending(a,decisions);voOpenDetail(id)}
 }
+function voTargetRoutine(snap,rid){
+ if(!snap)return null;
+ if(snap.type==="routine")return snap.id===rid?snap:null;
+ return snap.routines&&snap.routines[rid]?snap.routines[rid]:null
+}
+function voPreserveStructure(target,oldSnap,path){
+ const p=voPathParts(path),oldR=voTargetRoutine(oldSnap,p.rid),newR=voTargetRoutine(target,p.rid);if(!oldR||!newR)return;
+ const oldDay=(oldR.days||[]).find(function(d){return d.id===p.did});if(!oldDay)return;
+ let newDay=(newR.days||[]).find(function(d){return d.id===p.did});
+ if(!newDay){newR.days.push(voClone(oldDay));return}
+ if(p.ek==="@day")return;
+ const oldEx=(oldDay.exercises||[]).find(function(e){return voExerciseKey(e)===p.ek});if(!oldEx)return;
+ const has=(newDay.exercises||[]).some(function(e){return voExerciseKey(e)===p.ek});if(!has)newDay.exercises.push(voClone(oldEx))
+}
+function voDropExerciseOverrides(a,rid,did,ek){
+ if(!a.overrides||!a.overrides[rid]||!a.overrides[rid][did])return;
+ if(ek==="@day")delete a.overrides[rid][did];else delete a.overrides[rid][did][ek];
+ if(a.overrides[rid]&&a.overrides[rid][did]&&!Object.keys(a.overrides[rid][did]).length)delete a.overrides[rid][did];
+ if(a.overrides[rid]&&!Object.keys(a.overrides[rid]).length)delete a.overrides[rid]
+}
 function voApplyPending(a,decisions){
  const pu=a.pendingUpdate;if(!pu)return;
- (pu.conflicts||[]).forEach(function(c,i){if(decisions[i]==="template"){const p=voPathParts(c.path),oldEx=voFindExercise(a.baseSnapshot,p.rid,p.did,p.ek),oldFs=oldEx?voFields(oldEx):{};voSetOverride(a,p.rid,p.did,p.ek,p.field,oldFs[p.field],oldFs[p.field])}});
+ const target=voClone(pu.snapshot);
+ (pu.conflicts||[]).forEach(function(c,i){
+  const p=voPathParts(c.path),choice=decisions[i]||"keep";
+  if(p.field==="exists"){
+   if(choice==="keep")voPreserveStructure(target,a.baseSnapshot,c.path);
+   else voDropExerciseOverrides(a,p.rid,p.did,p.ek);
+   return
+  }
+  if(choice==="template"){
+   const oldEx=voFindExercise(a.baseSnapshot,p.rid,p.did,p.ek),oldFs=oldEx?voFields(oldEx):{};
+   voSetOverride(a,p.rid,p.did,p.ek,p.field,oldFs[p.field],oldFs[p.field])
+  }
+ });
  a.versionHistory=a.versionHistory||[];a.versionHistory.push({from:a.sourceVersion,to:pu.version,date:voToday(),status:"reviewed"});
- a.sourceVersion=pu.version;a.baseSnapshot=voClone(pu.snapshot);delete a.pendingUpdate;window.RodasAssignments.save()
+ a.sourceVersion=pu.version;a.baseSnapshot=target;delete a.pendingUpdate;window.RodasAssignments.save()
 }
 function voVersionBadgeInCards(){
  document.querySelectorAll("[data-ac-open]").forEach(function(btn){const a=voAssignment(btn.dataset.acOpen);if(!a)return;const top=btn.querySelector(".ac-assignment-top>div");if(top&&!top.querySelector(".vo-card-meta")){const s=document.createElement("span");s.className="vo-card-meta";s.textContent="v"+a.sourceVersion+" · "+voCountOverrides(a)+" personalizados"+(a.pendingUpdate?" · actualización pendiente":"");top.appendChild(s)}})
