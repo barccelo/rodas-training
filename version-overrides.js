@@ -328,7 +328,8 @@ function voVersionBadgeInCards(){
 }
 window.RodasVersioning={
  getEffectiveRoutine:function(assignmentId,routineId,context){const a=voAssignment(assignmentId);return a?voEffectiveRoutine(a,routineId,context):null},
- getVersionStore:function(){return versionStore}
+ getVersionStore:function(){return versionStore},
+ publish:function(type,id){return voPublish(type,id)}
 };
 voLoad();voEnsureInitialVersions();
 
