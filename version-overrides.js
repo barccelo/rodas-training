@@ -17,7 +17,7 @@ function voSnapshot(type,obj){return window.RodasAssignments?window.RodasAssignm
 function voKey(type,id){return type+":"+id}
 function voRecordSnapshot(type,obj){
  if(!obj)return;const k=voKey(type,obj.id),v=Number(obj.version||0);if(!versionStore[k])versionStore[k]={};
- versionStore[k][String(v)]={version:v,date:voToday(),snapshot:voSnapshot(type,obj)};voSave()
+ if(!versionStore[k][String(v)])versionStore[k][String(v)]={version:v,date:voToday(),snapshot:voSnapshot(type,obj)};voSave()
 }
 function voEnsureInitialVersions(){
  routineCatalog.forEach(function(r){voRecordSnapshot("routine",r)});
@@ -158,12 +158,54 @@ function voCaptureCustom(a,rs){
   card.querySelectorAll("[data-vo-field]").forEach(function(input){const f=input.dataset.voField;let v=input.value;if(["series","repsMin","repsMax","weight","effortTarget","rest"].indexOf(f)>=0){const n=Number(String(v).replace(",","."));v=Number.isFinite(n)?n:fs[f]}voSetOverride(a,rid,did,ek,f,v,fs[f])})
  })
 }
+function voApplyFieldToExercise(ex,field,value){
+ if(!ex.prescription)ex.prescription={};
+ if(field==="note"){ex.note=value;return}
+ if(field==="series"){
+  if(!Array.isArray(ex.sets))ex.sets=[];
+  const count=Math.max(1,Number(value||1));
+  while(ex.sets.length<count){const last=ex.sets[ex.sets.length-1]||["1","—",0,10,false,"","Efectiva",{}],copy=voClone(last);copy[0]=String(ex.sets.length+1);copy[4]=false;copy[5]="";ex.sets.push(copy)}
+  if(ex.sets.length>count)ex.sets=ex.sets.slice(0,count);
+  return
+ }
+ ex.prescription[field]=value;
+ (ex.sets||[]).forEach(function(set){
+  if(!set[7]||typeof set[7]!=="object")set[7]={};
+  if(field==="repsMin")set[7].repsMin=value;
+  if(field==="repsMax"){set[7].repsMax=value;set[3]=value}
+  if(field==="weight"){set[7].weight=value;if(ex.prescription.loadMode!=="none")set[2]=value}
+  if(field==="loadMode"){set[7].loadMode=value;if(value==="none")set[2]=0}
+  if(field==="effortMode")set[7].effortMode=value;
+  if(field==="effortTarget")set[7].effortTarget=value
+ })
+}
+function voEffectiveRoutine(a,rid){
+ const base=voFindRoutineSnapshot(a,rid);if(!base)return null;
+ const out=voClone(base),root=(a.overrides&&a.overrides[rid])||{};
+ (out.days||[]).forEach(function(d){
+  (d.exercises||[]).forEach(function(ex){
+   const ek=voExerciseKey(ex),node=root[d.id]&&root[d.id][ek]?root[d.id][ek]:null;if(!node)return;
+   Object.keys(node).forEach(function(field){voApplyFieldToExercise(ex,field,node[field])})
+  })
+ });
+ return out
+}
+function voEffectivePreview(id,rid){
+ const a=voAssignment(id);if(!a)return;const choices=voRoutineChoices(a);rid=rid||choices[0]&&choices[0].id;const r=voEffectiveRoutine(a,rid);if(!r)return;
+ document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="vo-effective-bg"><div class="sheet vo-effective-sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">'+voEsc(a.traineeName)+'</div><h2>Prescripción efectiva</h2></div><button class="icon-btn" id="vo-close-effective">'+ic("x")+'</button></div>'+
+ (choices.length>1?'<label class="rp-field"><span>Rutina</span><select id="vo-effective-routine">'+choices.map(function(x){return '<option value="'+x.id+'" '+(x.id===rid?"selected":"")+'>'+voEsc(x.name)+'</option>'}).join("")+'</select></label>':"")+
+ '<div class="vo-effective-info">'+ic("git-merge")+' Plantilla v'+a.sourceVersion+' + '+voCountOverrides(a)+' campos personalizados</div>'+
+ '<div class="vo-effective-days">'+(r.days||[]).map(function(d){return '<section><div class="vo-day-head"><strong>'+voEsc(d.name)+'</strong><span>'+d.exercises.length+' ejercicios</span></div>'+d.exercises.map(function(ex){const fs=voFields(ex);return '<article><div><strong>'+voEsc(ex.name)+'</strong><span>'+fs.series+' series · '+fs.repsMin+(fs.repsMax!==fs.repsMin?'–'+fs.repsMax:'')+' reps'+(fs.loadMode!=="none"?' · '+(fs.loadMode==="suggested"?'~':'')+fs.weight+' kg':'')+' · '+voEsc(fs.effortMode.toUpperCase())+' '+fs.effortTarget+' · '+fs.rest+' s</span></div>'+(ex.note?'<small>'+voEsc(ex.note)+'</small>':'')+'</article>'}).join("")+'</section>'}).join("")+'</div></div></div>';
+ if(window.lucide)lucide.createIcons();document.getElementById("vo-close-effective").onclick=function(){voOpenDetail(a.id)};
+ const sel=document.getElementById("vo-effective-routine");if(sel)sel.onchange=function(){voEffectivePreview(a.id,sel.value)};
+ document.getElementById("vo-effective-bg").onclick=function(ev){if(ev.target.id==="vo-effective-bg")voOpenDetail(a.id)}
+}
 function voAugmentDetail(id){
  const a=voAssignment(id);if(!a)return;window.RodasAssignments.ensureSnapshot(a);
  const sheet=document.querySelector(".ac-detail-sheet");if(!sheet)return;
  const meta=sheet.querySelector(".ac-detail-meta");if(meta&&!sheet.querySelector(".vo-personalize-row")){
   const row=document.createElement("div");row.className="vo-personalize-row";
-  row.innerHTML='<button class="secondary" id="vo-customize">'+ic("sliders-horizontal")+' Personalizar prescripción</button><div><strong>'+voCountOverrides(a)+'</strong><span>campos personalizados</span></div>';
+  row.innerHTML='<div class="vo-personalize-actions"><button class="secondary" id="vo-customize">'+ic("sliders-horizontal")+' Personalizar</button><button class="secondary" id="vo-effective">'+ic("eye")+' Ver efectiva</button></div><div><strong>'+voCountOverrides(a)+'</strong><span>campos personalizados</span></div>';
   meta.insertAdjacentElement("afterend",row)
  }
  if(a.pendingUpdate&&!sheet.querySelector(".vo-update-banner")){
@@ -173,6 +215,7 @@ function voAugmentDetail(id){
  }
  if(window.lucide)lucide.createIcons();
  const c=document.getElementById("vo-customize");if(c)c.onclick=function(){voCustomize(a.id)};
+ const e=document.getElementById("vo-effective");if(e)e.onclick=function(){voEffectivePreview(a.id)};
  const r=document.getElementById("vo-review-update");if(r)r.onclick=function(){voReviewPending(a.id)}
 }
 function voOpenDetail(id){window.RodasAssignments.openDetail(id);voAugmentDetail(id)}
@@ -267,6 +310,10 @@ function voApplyPending(a,decisions){
 function voVersionBadgeInCards(){
  document.querySelectorAll("[data-ac-open]").forEach(function(btn){const a=voAssignment(btn.dataset.acOpen);if(!a)return;const top=btn.querySelector(".ac-assignment-top>div");if(top&&!top.querySelector(".vo-card-meta")){const s=document.createElement("span");s.className="vo-card-meta";s.textContent="v"+a.sourceVersion+" · "+voCountOverrides(a)+" personalizados"+(a.pendingUpdate?" · actualización pendiente":"");top.appendChild(s)}})
 }
+window.RodasVersioning={
+ getEffectiveRoutine:function(assignmentId,routineId){const a=voAssignment(assignmentId);return a?voEffectiveRoutine(a,routineId):null},
+ getVersionStore:function(){return versionStore}
+};
 voLoad();voEnsureInitialVersions();
 
 const voPrevEvents=events;
