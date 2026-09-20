@@ -37,6 +37,11 @@ function pxNormalizeExercise(e){
  if(!p.effortMode)p.effortMode=p.rir!=null?"rir":"rir";
  if(p.effortTarget==null)p.effortTarget=p.rir!=null?Number(p.rir):2;
  if(p.rest==null)p.rest=90;
+ if(!p.metricType)p.metricType="reps";
+ if(!p.distanceUnit)p.distanceUnit="m";
+ if(!p.loadBasis)p.loadBasis=p.loadMode==="none"?"none":"external";
+ if(typeof p.optional!=="boolean")p.optional=false;
+ if(!p.unilateralMode)p.unilateralMode="same";
  if(!p.progression)p.progression={strategy:"none",increment:2.5,custom:""};
  if(!p.progression.strategy)p.progression.strategy="none";
  if(p.progression.increment==null)p.progression.increment=2.5;
@@ -52,22 +57,27 @@ function pxEffortLabel(mode,target){
  return mode.toUpperCase()+" "+target
 }
 function pxRepsLabel(m){return Number(m.repsMin)===Number(m.repsMax)?String(m.repsMin):m.repsMin+"–"+m.repsMax}
+function pxMetricLabels(p){
+ if(p.metricType==="time")return {min:"Seg. mín.",max:"Seg. máx.",unit:"s",name:"seg"};
+ if(p.metricType==="distance")return {min:(p.distanceUnit||"m")+" mín.",max:(p.distanceUnit||"m")+" máx.",unit:p.distanceUnit||"m",name:p.distanceUnit||"m"};
+ return {min:"Reps mín.",max:"Reps máx.",unit:"reps",name:"reps"}
+}
 function pxLoadLabel(m){
  if(m.loadMode==="none")return "Sin carga";
- const w=Number(m.weight||0);
- return (m.loadMode==="suggested"?"~ ":"")+w+" kg"
+ const w=Number(m.weight||0),shown=typeof toDisplayWeight==="function"?toDisplayWeight(w):w,u=typeof unitLabel==="function"?unitLabel():"kg";
+ return (m.loadMode==="suggested"?"~ ":"")+shown+" "+u
 }
 function pxSetCard(s,si,e){
- const m=pxSetMeta(s),role=pxRole(s,si),tech=m.technique||{type:"none"};
+ const m=pxSetMeta(s),role=pxRole(s,si),tech=m.technique||{type:"none"},metric=pxMetricLabels(e.prescription||{}),shownWeight=typeof toDisplayWeight==="function"?toDisplayWeight(m.weight||0):(m.weight||0),shownUnit=typeof unitLabel==="function"?unitLabel():"kg";
  const effortMode=m.effortMode==="inherit"?e.prescription.effortMode:m.effortMode;
  const effortTarget=m.effortMode==="inherit"?e.prescription.effortTarget:m.effortTarget;
  return '<article class="px-set-card" data-px-set-card="'+si+'">'+
  '<div class="px-set-head"><div><span>Serie '+(si+1)+'</span><select data-px-role="'+si+'"><option '+(role==="Calentamiento"?'selected':'')+'>Calentamiento</option><option '+(role==="Efectiva"?'selected':'')+'>Efectiva</option><option '+(role==="Back-off"?'selected':'')+'>Back-off</option></select></div><button class="px-delete-set" data-px-delete-set="'+si+'" aria-label="Eliminar serie">'+ic("trash-2")+'</button></div>'+
- '<div class="px-set-grid four"><label><span>Reps mín.</span><input data-px-reps-min="'+si+'" type="number" min="0" value="'+m.repsMin+'"></label><label><span>Reps máx.</span><input data-px-reps-max="'+si+'" type="number" min="0" value="'+m.repsMax+'"></label><label><span>Carga</span><input data-px-weight="'+si+'" inputmode="decimal" value="'+(m.weight||"")+'" placeholder="kg"></label><label><span>Modo</span><select data-px-load-mode="'+si+'"><option value="none" '+(m.loadMode==="none"?'selected':'')+'>—</option><option value="fixed" '+(m.loadMode==="fixed"?'selected':'')+'>Fija</option><option value="suggested" '+(m.loadMode==="suggested"?'selected':'')+'>Orient.</option></select></label></div>'+
+ '<div class="px-set-grid four"><label><span>'+metric.min+'</span><input data-px-reps-min="'+si+'" type="number" min="0" value="'+m.repsMin+'"></label><label><span>'+metric.max+'</span><input data-px-reps-max="'+si+'" type="number" min="0" value="'+m.repsMax+'"></label><label><span>Carga ('+shownUnit+')</span><input data-px-weight="'+si+'" inputmode="decimal" value="'+(shownWeight||"")+'" placeholder="'+shownUnit+'"></label><label><span>Modo</span><select data-px-load-mode="'+si+'"><option value="none" '+(m.loadMode==="none"?'selected':'')+'>—</option><option value="fixed" '+(m.loadMode==="fixed"?'selected':'')+'>Fija</option><option value="suggested" '+(m.loadMode==="suggested"?'selected':'')+'>Orient.</option></select></label></div>'+
  '<div class="px-set-grid two"><label><span>Esfuerzo</span><select data-px-effort-mode="'+si+'"><option value="inherit" '+(m.effortMode==="inherit"?'selected':'')+'>Heredar</option><option value="rir" '+(m.effortMode==="rir"?'selected':'')+'>RIR</option><option value="rpe" '+(m.effortMode==="rpe"?'selected':'')+'>RPE</option><option value="none" '+(m.effortMode==="none"?'selected':'')+'>Sin objetivo</option></select></label><label><span>Objetivo</span><input data-px-effort-target="'+si+'" type="number" min="0" max="10" step=".5" value="'+(m.effortTarget==null?effortTarget:m.effortTarget)+'"></label></div>'+
  '<div class="px-technique-row"><label><span>Técnica</span><select data-px-technique="'+si+'"><option value="none" '+(tech.type==="none"?'selected':'')+'>Sin técnica</option><option value="drop" '+(tech.type==="drop"?'selected':'')+'>Drop set</option><option value="restpause" '+(tech.type==="restpause"?'selected':'')+'>Rest-pause</option><option value="partials" '+(tech.type==="partials"?'selected':'')+'>Parciales</option></select></label><button data-px-tech-settings="'+si+'" '+(tech.type==="none"?'disabled':'')+'>'+ic("sliders-horizontal")+' Configurar</button></div>'+
  '<label class="px-note-field"><span>Nota de la serie</span><input data-px-set-note="'+si+'" value="'+pxEsc(m.note||"")+'" placeholder="Opcional"></label>'+
- '<div class="px-set-summary">'+pxRepsLabel(m)+' reps · '+pxLoadLabel(m)+' · '+pxEffortLabel(effortMode,effortTarget)+(tech.type!=="none"?' · '+pxTechniqueLabel(tech.type):"")+'</div>'+
+ '<div class="px-set-summary">'+pxRepsLabel(m)+' '+metric.name+' · '+pxLoadLabel(m)+' · '+pxEffortLabel(effortMode,effortTarget)+(tech.type!=="none"?' · '+pxTechniqueLabel(tech.type):"")+'</div>'+
  '</article>'
 }
 function pxProgressFields(p){
@@ -86,33 +96,40 @@ function pxEditor(ri,ei){
  document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="px-editor-bg"><div class="sheet px-editor-sheet"><div class="handle"></div>'+
  '<div class="sheet-set-title"><div><div class="eyebrow">'+pxEsc(day.name)+'</div><h2>'+pxEsc(e.name)+'</h2></div><button class="icon-btn" id="px-close-editor">'+ic("x")+'</button></div>'+
  '<div class="px-subhead"><strong>Prescripción general</strong><span>Valores por defecto para las series.</span></div>'+
- '<div class="px-general-grid"><label class="rp-field"><span>Reps mín.</span><input id="px-default-reps-min" type="number" min="0" value="'+p.repsMin+'"></label><label class="rp-field"><span>Reps máx.</span><input id="px-default-reps-max" type="number" min="0" value="'+p.repsMax+'"></label><label class="rp-field"><span>Carga</span><input id="px-default-weight" inputmode="decimal" value="'+(p.weight||"")+'" placeholder="kg"></label><label class="rp-field"><span>Modo de carga</span><select id="px-default-load-mode"><option value="none" '+(p.loadMode==="none"?'selected':'')+'>Sin carga</option><option value="fixed" '+(p.loadMode==="fixed"?'selected':'')+'>Prescrita</option><option value="suggested" '+(p.loadMode==="suggested"?'selected':'')+'>Orientativa</option></select></label></div>'+
+ '<div class="px-general-grid"><label class="rp-field"><span>'+pxMetricLabels(p).min+'</span><input id="px-default-reps-min" type="number" min="0" value="'+p.repsMin+'"></label><label class="rp-field"><span>'+pxMetricLabels(p).max+'</span><input id="px-default-reps-max" type="number" min="0" value="'+p.repsMax+'"></label><label class="rp-field"><span>Carga ('+(typeof unitLabel==="function"?unitLabel():"kg")+')</span><input id="px-default-weight" inputmode="decimal" value="'+((typeof toDisplayWeight==="function"?toDisplayWeight(p.weight||0):(p.weight||0))||"")+'" placeholder="'+(typeof unitLabel==="function"?unitLabel():"kg")+'"></label><label class="rp-field"><span>Modo de carga</span><select id="px-default-load-mode"><option value="none" '+(p.loadMode==="none"?'selected':'')+'>Sin carga</option><option value="fixed" '+(p.loadMode==="fixed"?'selected':'')+'>Prescrita</option><option value="suggested" '+(p.loadMode==="suggested"?'selected':'')+'>Orientativa</option></select></label></div>'+
  '<div class="px-general-grid three"><label class="rp-field"><span>Esfuerzo</span><select id="px-default-effort-mode"><option value="rir" '+(p.effortMode==="rir"?'selected':'')+'>RIR</option><option value="rpe" '+(p.effortMode==="rpe"?'selected':'')+'>RPE</option><option value="none" '+(p.effortMode==="none"?'selected':'')+'>Sin objetivo</option></select></label><label class="rp-field"><span>Objetivo</span><input id="px-default-effort-target" type="number" min="0" max="10" step=".5" value="'+p.effortTarget+'"></label><label class="rp-field"><span>Descanso</span><select id="px-default-rest"><option value="60">60 s</option><option value="90">90 s</option><option value="120">2 min</option><option value="180">3 min</option><option value="240">4 min</option></select></label></div>'+
- '<label class="rp-field"><span>Nota para el entrenado</span><input id="px-exercise-note" value="'+pxEsc(e.note||"")+'" placeholder="Indicaciones técnicas"></label>'+
+ '<div class="px-special-grid"><label class="rp-field"><span>Métrica</span><select id="px-metric-type"><option value="reps" '+(p.metricType==="reps"?"selected":"")+'>Repeticiones</option><option value="time" '+(p.metricType==="time"?"selected":"")+'>Tiempo</option><option value="distance" '+(p.metricType==="distance"?"selected":"")+'>Distancia</option></select></label><label class="rp-field"><span>Unidad distancia</span><select id="px-distance-unit" '+(p.metricType==="distance"?"":"disabled")+'><option value="m" '+(p.distanceUnit==="m"?"selected":"")+'>metros</option><option value="km" '+(p.distanceUnit==="km"?"selected":"")+'>km</option></select></label><label class="rp-field"><span>Tipo de carga</span><select id="px-load-basis"><option value="external" '+(p.loadBasis==="external"?"selected":"")+'>Carga externa</option><option value="bodyweight" '+(p.loadBasis==="bodyweight"?"selected":"")+'>Peso corporal</option><option value="bodyweight-plus" '+(p.loadBasis==="bodyweight-plus"?"selected":"")+'>BW + carga</option><option value="assisted" '+(p.loadBasis==="assisted"?"selected":"")+'>Asistido</option><option value="none" '+(p.loadBasis==="none"?"selected":"")+'>Sin carga</option></select></label><label class="rp-field"><span>Unilateral</span><select id="px-unilateral-mode"><option value="same" '+(p.unilateralMode==="same"?"selected":"")+'>Mismo valor</option><option value="per-side" '+(p.unilateralMode==="per-side"?"selected":"")+'>Registrar por lado</option></select></label></div><label class="px-optional-toggle"><input id="px-optional" type="checkbox" '+(p.optional?"checked":"")+'><span><strong>Ejercicio opcional</strong><small>Omitirlo no convierte la sesión en parcial.</small></span></label><label class="rp-field"><span>Nota para el entrenado</span><input id="px-exercise-note" value="'+pxEsc(e.note||"")+'" placeholder="Indicaciones técnicas"></label>'+
  '<div class="px-default-actions"><button id="px-apply-defaults">'+ic("wand-sparkles")+' Aplicar valores generales a todas las series</button></div>'+
  '<div class="px-subhead series"><strong>Series</strong><button id="px-add-set">'+ic("plus")+' Serie</button></div>'+
  '<div id="px-set-list">'+e.sets.map(function(s,si){return pxSetCard(s,si,e)}).join("")+'</div>'+
  pxProgressFields(p)+
  '<button class="primary px-save" id="px-save">Guardar cambios</button></div></div>';
  document.getElementById("px-default-rest").value=String(p.rest||90);
+ const metricType=document.getElementById("px-metric-type"),distanceUnit=document.getElementById("px-distance-unit");
+ if(metricType)metricType.onchange=function(){p.metricType=metricType.value;if(distanceUnit)distanceUnit.disabled=metricType.value!=="distance";pxEditor(ri,ei)};
  if(window.lucide)lucide.createIcons();
  pxBindEditor(r,day,e,ri,ei)
 }
 function pxReadDefault(p){
  p.repsMin=Math.max(0,pxNum(document.getElementById("px-default-reps-min").value,p.repsMin));
  p.repsMax=Math.max(p.repsMin,pxNum(document.getElementById("px-default-reps-max").value,p.repsMax));
- p.weight=Math.max(0,pxNum(document.getElementById("px-default-weight").value,p.weight||0));
+ const displayWeight=Math.max(0,pxNum(document.getElementById("px-default-weight").value,typeof toDisplayWeight==="function"?toDisplayWeight(p.weight||0):(p.weight||0)));
+ p.weight=typeof fromDisplayWeight==="function"?fromDisplayWeight(displayWeight):displayWeight;
  p.loadMode=document.getElementById("px-default-load-mode").value;
  p.effortMode=document.getElementById("px-default-effort-mode").value;
  p.effortTarget=Math.max(0,Math.min(10,pxNum(document.getElementById("px-default-effort-target").value,p.effortTarget)));
  p.rir=p.effortMode==="rir"?p.effortTarget:null;
- p.rest=+document.getElementById("px-default-rest").value||90
+ p.rest=+document.getElementById("px-default-rest").value||90;
+ const metric=document.getElementById("px-metric-type"),distance=document.getElementById("px-distance-unit"),basis=document.getElementById("px-load-basis"),optional=document.getElementById("px-optional"),unilateral=document.getElementById("px-unilateral-mode");
+ if(metric)p.metricType=metric.value;if(distance)p.distanceUnit=distance.value;if(basis)p.loadBasis=basis.value;if(optional)p.optional=optional.checked;if(unilateral)p.unilateralMode=unilateral.value;
+ if(p.loadBasis==="bodyweight"||p.loadBasis==="none"){p.loadMode="none";p.weight=0}
 }
 function pxReadSet(e,s,si){
  const m=pxSetMeta(s);
  const minEl=document.querySelector("[data-px-reps-min='"+si+"']"),maxEl=document.querySelector("[data-px-reps-max='"+si+"']");
  m.repsMin=Math.max(0,pxNum(minEl.value,m.repsMin));m.repsMax=Math.max(m.repsMin,pxNum(maxEl.value,m.repsMax));
- m.weight=Math.max(0,pxNum(document.querySelector("[data-px-weight='"+si+"']").value,m.weight||0));
+ const displaySetWeight=Math.max(0,pxNum(document.querySelector("[data-px-weight='"+si+"']").value,typeof toDisplayWeight==="function"?toDisplayWeight(m.weight||0):(m.weight||0)));
+ m.weight=typeof fromDisplayWeight==="function"?fromDisplayWeight(displaySetWeight):displaySetWeight;
  m.loadMode=document.querySelector("[data-px-load-mode='"+si+"']").value;
  m.effortMode=document.querySelector("[data-px-effort-mode='"+si+"']").value;
  m.effortTarget=Math.max(0,Math.min(10,pxNum(document.querySelector("[data-px-effort-target='"+si+"']").value,e.prescription.effortTarget)));
@@ -226,10 +243,15 @@ function pxTechniqueCompact(t){
  return ""
 }
 function pxPrescriptionLine(e){
- pxNormalizeExercise(e);const p=e.prescription,rep=p.repsMin===p.repsMax?String(p.repsMin):p.repsMin+"–"+p.repsMax;
- const load=p.loadMode==="none"?"":(p.loadMode==="suggested"?" · ~"+p.weight+" kg":" · "+p.weight+" kg");
+ pxNormalizeExercise(e);const p=e.prescription,metric=pxMetricLabels(p),rep=p.repsMin===p.repsMax?String(p.repsMin):p.repsMin+"–"+p.repsMax;
+ const shown=typeof toDisplayWeight==="function"?toDisplayWeight(p.weight||0):(p.weight||0),u=typeof unitLabel==="function"?unitLabel():"kg";
+ let load="";
+ if(p.loadBasis==="bodyweight")load=" · BW";
+ else if(p.loadBasis==="bodyweight-plus")load=" · BW + "+shown+" "+u;
+ else if(p.loadBasis==="assisted")load=" · asist. "+shown+" "+u;
+ else if(p.loadMode!=="none")load=(p.loadMode==="suggested"?" · ~":" · ")+shown+" "+u;
  const effort=p.effortMode==="none"?"":" · "+p.effortMode.toUpperCase()+" "+p.effortTarget;
- return rep+" reps"+load+effort+" · "+p.rest+" s"
+ return rep+" "+metric.name+load+effort+" · "+p.rest+" s"+(p.optional?" · opcional":"")
 }
 const pxBaseExerciseCard=exerciseCard;
 exerciseCard=function(e,ei){
