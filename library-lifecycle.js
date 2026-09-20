@@ -214,6 +214,6 @@ routines=function(){
 const lcPrevEvents=events;
 events=function(){lcPrevEvents();lcBindControls()};
 
-window.RodasLibraryLifecycle={dependencies:lcDependencies,openHistory:lcOpenHistory,archive:lcArchive,restore:lcRestore};
+window.RodasLibraryLifecycle={dependencies:lcDependencies,openHistory:lcOpenHistory,archive:lcArchive,restore:lcRestore,duplicate:lcDuplicate,editMeta:lcOpenMeta};
 render();
 })();
