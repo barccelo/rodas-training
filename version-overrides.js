@@ -109,7 +109,8 @@ function voConflictChanges(a,newSnap){
  return changes.filter(function(ch){
   if(over[ch.path]!==undefined)return true;
   if(ch.path.endsWith("/exists")){
-    const prefix=ch.path.slice(0,-"exists".length);
+    const parts=ch.path.split("/");
+    const prefix=parts[2]==="@day"?(parts[0]+"/"+parts[1]+"/"):ch.path.slice(0,-"exists".length);
     return Object.keys(over).some(function(p){return p.indexOf(prefix)===0})
   }
   return false
@@ -222,7 +223,6 @@ function voOpenDetail(id){window.RodasAssignments.openDetail(id);voAugmentDetail
 function voPublish(type,id){
  const obj=voSource(type,id);if(!obj)return;const current=Number(obj.version||0),next=current+1;
  const originalVersion=obj.version;obj.version=next;
- if(type==="program")(obj.phases||[]).forEach(function(ph){const r=voRoutine(ph.routineId);if(r)ph.routineVersion=Number(r.version||0)});
  const snap=voSnapshot(type,obj);obj.version=originalVersion;
  const active=voAssignments().filter(function(a){return a.sourceType===type&&a.sourceId===id&&a.status!=="completed"});
  const impact=active.map(function(a){window.RodasAssignments.ensureSnapshot(a);const conflicts=voConflictChanges(a,snap);return {a:a,conflicts:conflicts}});
@@ -235,7 +235,7 @@ function voPublish(type,id){
  if(window.lucide)lucide.createIcons();
  document.getElementById("vo-close-publish").onclick=clearRest;document.getElementById("vo-publish-bg").onclick=function(ev){if(ev.target.id==="vo-publish-bg")clearRest()};
  function commit(updateCompat){
-  obj.version=next;if(type==="routine"){obj.status="Publicado";obj.dirty=false}else obj.status="Publicado";
+  obj.version=next;if(type==="routine"){obj.status="Publicado";obj.dirty=false}else{obj.status="Publicado";(obj.phases||[]).forEach(function(ph){const r=voRoutine(ph.routineId);if(r)ph.routineVersion=Number(r.version||0)})}
   const finalSnap=voSnapshot(type,obj);versionStore[voKey(type,id)]=versionStore[voKey(type,id)]||{};versionStore[voKey(type,id)][String(next)]={version:next,date:voToday(),snapshot:voClone(finalSnap)};voSave();
   impact.forEach(function(x){
    const a=x.a;a.versionHistory=a.versionHistory||[];
