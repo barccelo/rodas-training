@@ -138,10 +138,12 @@ function rbMoveExercise(r,day,blockId,exId,dir){
  const t=block.exerciseIds[i];block.exerciseIds[i]=block.exerciseIds[n];block.exerciseIds[n]=t;rbSync(day);r.exercises=day.exercises;rbMarkDirty(r)
 }
 function rbRegroup(r,day,type){
- const selected=rbState.selected.slice();if(!selected.length)return;
+ const order={};day.exercises.forEach(function(e,i){order[rbUid(e)]=i});
+ const selected=rbState.selected.slice().sort(function(a,b){return (order[a]||0)-(order[b]||0)});if(!selected.length)return;
  let blocks=rbEnsureBlocks(day);
  blocks.forEach(function(b){b.exerciseIds=b.exerciseIds.filter(function(id){return selected.indexOf(id)<0})});
  blocks=blocks.filter(function(b){return b.exerciseIds.length});
+ blocks.forEach(function(b){if(b.exerciseIds.length===1)b.type="individual"});
  const firstOrder=day.exercises.reduce(function(best,e,i){return selected.indexOf(rbUid(e))>=0&&i<best?i:best},99999);
  const insertIndex=Math.min(blocks.length,blocks.reduce(function(pos,b,i){
    const first=b.exerciseIds[0],idx=rbExerciseIndex(day,first);return idx<firstOrder?i+1:pos
