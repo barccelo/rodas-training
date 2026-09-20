@@ -66,7 +66,7 @@ function voFields(ex){
   note:ex.note||""
  }
 }
-const VO_LABELS={series:"Series",repsMin:"Reps mín.",repsMax:"Reps máx.",loadMode:"Modo de carga",weight:"Carga",effortMode:"Esfuerzo",effortTarget:"Objetivo",rest:"Descanso",note:"Nota"};
+const VO_LABELS={series:"Series",repsMin:"Reps mín.",repsMax:"Reps máx.",loadMode:"Modo de carga",weight:"Carga",effortMode:"Esfuerzo",effortTarget:"Objetivo",rest:"Descanso",note:"Nota",exists:"Estructura"};
 function voDisplay(field,val){
  if(field==="loadMode")return val==="suggested"?"Orientativa":val==="fixed"?"Prescrita":"Sin carga";
  if(field==="effortMode")return val==="rir"?"RIR":val==="rpe"?"RPE":"Sin objetivo";
