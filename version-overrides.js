@@ -180,9 +180,11 @@ function voApplyFieldToExercise(ex,field,value){
   if(field==="effortTarget")set[7].effortTarget=value
  })
 }
-function voEffectiveRoutine(a,rid){
+function voEffectiveRoutine(a,rid,context){
  const base=voFindRoutineSnapshot(a,rid);if(!base)return null;
- const out=voClone(base),root=(a.overrides&&a.overrides[rid])||{};
+ let out=voClone(base);
+ if(a.sourceType==="program"&&window.RodasLongitudinal&&context)out=window.RodasLongitudinal.applyToRoutine(a,out,context);
+ const root=(a.overrides&&a.overrides[rid])||{};
  (out.days||[]).forEach(function(d){
   (d.exercises||[]).forEach(function(ex){
    const ek=voExerciseKey(ex),node=root[d.id]&&root[d.id][ek]?root[d.id][ek]:null;if(!node)return;
@@ -311,7 +313,7 @@ function voVersionBadgeInCards(){
  document.querySelectorAll("[data-ac-open]").forEach(function(btn){const a=voAssignment(btn.dataset.acOpen);if(!a)return;const top=btn.querySelector(".ac-assignment-top>div");if(top&&!top.querySelector(".vo-card-meta")){const s=document.createElement("span");s.className="vo-card-meta";s.textContent="v"+a.sourceVersion+" · "+voCountOverrides(a)+" personalizados"+(a.pendingUpdate?" · actualización pendiente":"");top.appendChild(s)}})
 }
 window.RodasVersioning={
- getEffectiveRoutine:function(assignmentId,routineId){const a=voAssignment(assignmentId);return a?voEffectiveRoutine(a,routineId):null},
+ getEffectiveRoutine:function(assignmentId,routineId,context){const a=voAssignment(assignmentId);return a?voEffectiveRoutine(a,routineId,context):null},
  getVersionStore:function(){return versionStore}
 };
 voLoad();voEnsureInitialVersions();
