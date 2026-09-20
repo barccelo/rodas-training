@@ -157,7 +157,7 @@ function rbBlockSettings(r,day,blockId){
  const b=rbFindBlock(day,blockId);if(!b)return;
  const grouped=b.type!=="individual";
  document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="rb-block-settings-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">Bloque</div><h2>'+rbTypeName(b.type)+'</h2></div><button class="icon-btn" id="rb-close-settings">'+ic("x")+'</button></div>'+
- '<label class="rp-field"><span>Tipo</span><select id="rb-block-type"><option value="individual" '+(b.type==="individual"?'selected':'')+'>Individual</option><option value="superset" '+(b.type==="superset"?'selected':'')+'>Superserie</option><option value="supraset" '+(b.type==="supraset"?'selected':'')+'>Supraserie</option></select></label>'+
+ '<label class="rp-field"><span>Tipo</span><select id="rb-block-type"><option value="individual" '+(b.type==="individual"?'selected':'')+'>Individual</option>'+(b.exerciseIds.length>1?'<option value="superset" '+(b.type==="superset"?'selected':'')+'>Superserie</option><option value="supraset" '+(b.type==="supraset"?'selected':'')+'>Supraserie</option>':'')+'</select></label>'+
  (grouped?'<div class="rb-settings-grid"><label class="rp-field"><span>Vueltas</span><input id="rb-rounds" type="number" min="1" max="20" value="'+b.rounds+'"></label><label class="rp-field"><span>Entre ejercicios</span><select id="rb-between"><option value="0">Sin descanso</option><option value="15">15 s</option><option value="30">30 s</option><option value="45">45 s</option><option value="60">60 s</option></select></label></div><label class="rp-field"><span>Descanso al terminar vuelta</span><select id="rb-round-rest"><option value="60">60 s</option><option value="90">90 s</option><option value="120">2 min</option><option value="180">3 min</option></select></label>':'')+
  '<div class="rb-sheet-actions"><button class="secondary" id="rb-split-block">'+ic("ungroup")+' Separar ejercicios</button><button class="primary" id="rb-save-settings">Guardar</button></div></div></div>';
  if(grouped){document.getElementById("rb-between").value=String(b.betweenRest);document.getElementById("rb-round-rest").value=String(b.roundRest)}
@@ -168,8 +168,23 @@ function rbBlockSettings(r,day,blockId){
  document.getElementById("rb-save-settings").onclick=function(){
   const type=document.getElementById("rb-block-type").value;
   if(type==="individual"&&b.exerciseIds.length>1){rbState.selected=b.exerciseIds.slice();rbRegroup(r,day,"individual");clearRest();render();return}
+  if(type!=="individual"&&b.exerciseIds.length<2){alert("Una superserie o supraserie necesita al menos dos ejercicios.");return}
   b.type=type;
-  if(type!=="individual"){b.rounds=Math.max(1,+document.getElementById("rb-rounds").value||1);b.betweenRest=+document.getElementById("rb-between").value||0;b.roundRest=+document.getElementById("rb-round-rest").value||90}
+  if(type!=="individual"){
+    b.rounds=Math.max(1,+document.getElementById("rb-rounds").value||1);
+    b.betweenRest=+document.getElementById("rb-between").value||0;
+    b.roundRest=+document.getElementById("rb-round-rest").value||90;
+    b.exerciseIds.forEach(function(id){
+      const ex=rbExerciseById(day,id);if(!ex)return;
+      if(!Array.isArray(ex.sets))ex.sets=[];
+      while(ex.sets.length<b.rounds){
+        const last=ex.sets[ex.sets.length-1]||["1","—",0,10,false,"","Efectiva"];
+        ex.sets.push([String(ex.sets.length+1),"—",last[2],last[3],false,"",last[6]||"Efectiva"])
+      }
+      if(ex.sets.length>b.rounds)ex.sets=ex.sets.slice(0,b.rounds);
+      ex.sets.forEach(function(set,i){if(set[0]!=="W")set[0]=String(i+1)})
+    })
+  }
   rbSync(day);r.exercises=day.exercises;rbMarkDirty(r);clearRest();render()
  }
 }
@@ -198,6 +213,24 @@ events=function(){
  document.querySelectorAll("[data-rb-move-ex]").forEach(function(btn){btn.onclick=function(){if(!r||!day)return;const p=btn.dataset.rbMoveEx.split(":");rbMoveExercise(r,day,p[0],p[1],Number(p[2]));render()}});
  document.querySelectorAll("[data-rb-block-menu]").forEach(function(btn){btn.onclick=function(){if(r&&day)rbBlockSettings(r,day,btn.dataset.rbBlockMenu)}});
  const create=document.querySelector("[data-rb-create-block]");if(create)create.onclick=function(){if(r&&day)rbCreateBlockSheet(r,day)};
+ document.querySelectorAll("[data-check]").forEach(function(btn){btn.onclick=function(){
+  const ei=+btn.dataset.ei,si=+btn.dataset.si,set=state.exercises[ei].sets[si];
+  set[4]=!set[4];haptic(set[4]?22:10);
+  if(set[4]){
+    const exercise=state.exercises[ei];
+    if(exercise.group){
+      const target=nextGroupTarget(ei);state.activeExercise=target===null?ei:target;
+      const members=groupMembers(exercise.group),atEnd=members[members.length-1]===ei,meta=exercise.blockMeta||{};
+      if(atEnd){if((meta.roundRest||preferences.restSeconds)>0)rest(meta.roundRest||preferences.restSeconds)}
+      else if((meta.betweenRest||0)>0)rest(meta.betweenRest)
+    }else{
+      const exerciseDone=exercise.sets.every(function(x){return x[4]});
+      if(exerciseDone&&ei<state.exercises.length-1)state.activeExercise=ei+1;
+      rest(preferences.restSeconds)
+    }
+  }
+  saveWorkout();render()
+ }});
 };
 
 const oldGroupBanner=groupBanner;
