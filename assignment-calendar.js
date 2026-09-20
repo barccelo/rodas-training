@@ -129,13 +129,14 @@ function acOpenAssign(type,id){
  }
 }
 function acSessionStatus(s){
+ if(s.status==="in-progress")return "En curso";
  if(s.status==="completed")return "Completada";
  if(s.status==="skipped")return "Omitida";
  if(s.date<acToday())return "Pendiente";
  if(s.date===acToday())return "Hoy";
  return "Programada"
 }
-function acSessionClass(s){if(s.status==="completed")return "done";if(s.status==="skipped")return "skipped";if(s.date<acToday())return "overdue";if(s.date===acToday())return "today";return "planned"}
+function acSessionClass(s){if(s.status==="in-progress")return "in-progress";if(s.status==="completed")return "done";if(s.status==="skipped")return "skipped";if(s.date<acToday())return "overdue";if(s.date===acToday())return "today";return "planned"}
 function acOpenDetail(id){
  const a=assignments.find(function(x){return x.id===id});if(!a)return;
  acState.detail=id;
@@ -191,6 +192,7 @@ function acAdvanceSequence(a,status){
 }
 function acOpenSessionMenu(a,sid){
  const s=(a.sessions||[]).find(function(x){return x.id===sid});if(!s)return;
+ if(window.RodasScheduledSessions&&window.RodasScheduledSessions.openFixedSession){window.RodasScheduledSessions.openFixedSession(a,s);return}
  document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="ac-session-bg"><div class="sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">'+acDateLabel(s.date)+'</div><h2>'+acEsc(s.name)+'</h2></div><button class="icon-btn" id="ac-close-session">'+ic("x")+'</button></div><div class="sheet-actions"><button id="ac-session-complete">'+ic("check-circle-2")+' Marcar completada</button><button id="ac-session-reschedule">'+ic("calendar-clock")+' Reprogramar</button><button id="ac-session-skip">'+ic("skip-forward")+' Omitir</button></div></div></div>';
  if(window.lucide)lucide.createIcons();
  document.getElementById("ac-close-session").onclick=function(){acOpenDetail(a.id)};
