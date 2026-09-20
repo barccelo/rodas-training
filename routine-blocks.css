@@ -20,3 +20,5 @@
 .rb-create-sheet{max-height:min(86vh,720px);overflow-y:auto}
 .rb-workout-group span{line-height:1.35}
 @media(max-width:390px){.rb-selection-actions{grid-template-columns:1fr}.rb-add-row,.rb-sheet-actions{grid-template-columns:1fr}.rb-block-title small{max-width:205px}.rb-ex-actions{display:none}}
+/* Grouping is managed only from the block editor. */
+.re-group-control{display:none}
