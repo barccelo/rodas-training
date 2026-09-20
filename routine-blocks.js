@@ -97,7 +97,8 @@ function rbExerciseRow(r,ri,day,block,e,position,total){
  const effort=p.effortMode&&p.effortMode!=="none"&&p.effortTarget!=null?" · "+String(p.effortMode).toUpperCase()+" "+p.effortTarget:"";
  const shownWeight=typeof toDisplayWeight==="function"?toDisplayWeight(p.weight||0):(p.weight||0),shownUnit=typeof unitLabel==="function"?unitLabel():"kg";
  const load=p.loadMode==="suggested"&&p.weight?" · ~"+shownWeight+" "+shownUnit:p.loadMode==="fixed"&&p.weight?" · "+shownWeight+" "+shownUnit:"";
- const meta=(e.sets||[]).length+" series"+(reps?" · "+reps+" reps":"")+load+effort+(e.note?" · "+e.note:"");
+ const metricUnit=p.metricType==="time"?"s":p.metricType==="distance"?(p.distanceUnit||"m"):"reps";
+ const meta=(e.sets||[]).length+" series"+(reps?" · "+reps+" "+metricUnit:"")+load+effort+(p.optional?" · opcional":"")+(e.note?" · "+e.note:"");
  const check=rbState.selectionMode?'<button class="rb-select '+(rbSelected(id)?"selected":"")+'" data-rb-select="'+id+'" aria-label="Seleccionar">'+(rbSelected(id)?ic("check"):ic("circle"))+'</button>':'<div class="routine-drag">'+ic("grip-vertical")+'</div>';
  return '<article class="rb-exercise-row '+(rbSelected(id)?"selected":"")+'">'+check+'<div class="routine-exercise-copy"><strong>'+rbEsc(e.name)+'</strong><span>'+rbEsc(meta)+'</span></div>'+(r.personal?'<div class="rb-ex-actions"><button data-rb-move-ex="'+block.id+':'+id+':-1" '+(position===0?'disabled':'')+'>'+ic("chevron-up")+'</button><button data-rb-move-ex="'+block.id+':'+id+':1" '+(position===total-1?'disabled':'')+'>'+ic("chevron-down")+'</button></div><button class="routine-edit-btn" data-edit-routine-exercise="'+ri+':'+ei+'">'+ic("ellipsis")+'</button>':'')+'</article>'
 }
