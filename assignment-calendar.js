@@ -130,13 +130,14 @@ function acOpenAssign(type,id){
 }
 function acSessionStatus(s){
  if(s.status==="in-progress")return "En curso";
+ if(s.status==="partial")return "Parcial";
  if(s.status==="completed")return "Completada";
  if(s.status==="skipped")return "Omitida";
  if(s.date<acToday())return "Pendiente";
  if(s.date===acToday())return "Hoy";
  return "Programada"
 }
-function acSessionClass(s){if(s.status==="in-progress")return "in-progress";if(s.status==="completed")return "done";if(s.status==="skipped")return "skipped";if(s.date<acToday())return "overdue";if(s.date===acToday())return "today";return "planned"}
+function acSessionClass(s){if(s.status==="in-progress")return "in-progress";if(s.status==="partial")return "partial";if(s.status==="completed")return "done";if(s.status==="skipped")return "skipped";if(s.date<acToday())return "overdue";if(s.date===acToday())return "today";return "planned"}
 function acOpenDetail(id){
  const a=assignments.find(function(x){return x.id===id});if(!a)return;
  acState.detail=id;
