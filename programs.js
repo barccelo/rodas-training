@@ -126,6 +126,12 @@ function openPhaseMenu(pi,phaseIndex){
 
 loadRP();
 routineCatalog.forEach(ensureRoutineMeta);
+window.RodasPrograms={
+ getPrograms:function(){return programCatalog},
+ getState:function(){return rpState},
+ save:function(){saveRP()},
+ getRoutineById:function(id){return routineById(id)}
+};
 
 const baseRoutineDetailView=routineDetailView;
 routineDetailView=function(index){
