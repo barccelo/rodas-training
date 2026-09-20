@@ -147,7 +147,7 @@ function scDecorateArchivedRefs(){
  document.querySelectorAll(".rb-exercise-row").forEach(function(row){const strong=row.querySelector(".routine-exercise-copy strong");if(!strong||row.querySelector(".sc-archived-badge"))return;if(scIsArchived(strong.textContent)){const b=document.createElement("span");b.className="sc-archived-badge";b.textContent="Archivado";strong.insertAdjacentElement("afterend",b)}})
 }
 function scFilterArchivedPicker(){
- document.querySelectorAll("[data-re-ex-option]").forEach(function(b){if(scIsArchived(b.textContent.replace(/3 series sugeridas.*/,"").trim()))b.style.display="none"})
+ document.querySelectorAll("[data-re-ex-option]").forEach(function(b){const strong=b.querySelector("strong"),name=strong?strong.textContent.trim():"";if(name&&scIsArchived(name))b.style.display="none"})
 }
 scLoadLibrary();
 
@@ -171,8 +171,13 @@ if(window.RodasAssignments){
 }
 
 const scBaseTotalSets=totalSets,scBaseDoneSets=doneSets;
-totalSets=function(){if(!state.exercises)return scBaseTotalSets();return state.exercises.reduce(function(n,e){return n+((e.prescription&&e.prescription.optional)?0:(e.sets||[]).length)},0)};
-doneSets=function(){if(!state.exercises)return scBaseDoneSets();return state.exercises.reduce(function(n,e){return n+((e.prescription&&e.prescription.optional)?0:(e.sets||[]).filter(function(s){return s[4]}).length)},0)};
+function scRequiredSetCount(doneOnly){
+ if(!state.exercises)return null;
+ const required=state.exercises.filter(function(e){return !(e.prescription&&e.prescription.optional)}),source=required.length?required:state.exercises;
+ return source.reduce(function(n,e){return n+(doneOnly?(e.sets||[]).filter(function(s){return s[4]}).length:(e.sets||[]).length)},0)
+}
+totalSets=function(){const n=scRequiredSetCount(false);return n==null?scBaseTotalSets():n};
+doneSets=function(){const n=scRequiredSetCount(true);return n==null?scBaseDoneSets():n};
 
 const scBaseExerciseCard=exerciseCard;
 exerciseCard=function(e,ei){
