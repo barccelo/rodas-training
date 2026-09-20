@@ -193,14 +193,28 @@ function voEffectiveRoutine(a,rid,context){
  });
  return out
 }
-function voEffectivePreview(id,rid){
- const a=voAssignment(id);if(!a)return;const choices=voRoutineChoices(a);rid=rid||choices[0]&&choices[0].id;const r=voEffectiveRoutine(a,rid);if(!r)return;
+function voEffectivePreview(id,rid,week){
+ const a=voAssignment(id);if(!a)return;
+ const choices=voRoutineChoices(a),isProgram=a.sourceType==="program"&&a.baseSnapshot&&a.baseSnapshot.type==="program";
+ let phase=null;
+ if(isProgram){
+  if(!week){
+   const pending=(a.sessions||[]).find(function(s){return s.status!=="completed"&&s.status!=="partial"&&s.status!=="skipped"});
+   week=pending?pending.week:Math.floor((a.sequenceStep||0)/Math.max(1,a.frequency||1))+1
+  }
+  week=Math.max(1,Math.min(Number(a.baseSnapshot.duration||1),Number(week||1)));
+  phase=(a.baseSnapshot.phases||[]).find(function(ph){return week>=ph.from&&week<=ph.to})||(a.baseSnapshot.phases||[])[0]||null;
+  rid=phase?phase.routineId:rid
+ }else rid=rid||choices[0]&&choices[0].id;
+ const r=voEffectiveRoutine(a,rid,isProgram?{week:week,phase:phase?phase.name:""}:null);if(!r)return;
+ const weekSelect=isProgram?'<div class="vo-effective-context"><label class="rp-field"><span>Semana del programa</span><select id="vo-effective-week">'+Array.from({length:Number(a.baseSnapshot.duration||1)},function(_,i){const w=i+1;return '<option value="'+w+'" '+(w===week?"selected":"")+'>Semana '+w+'</option>'}).join("")+'</select></label><div><span>Fase</span><strong>'+voEsc(phase?phase.name:"—")+'</strong></div></div>':(choices.length>1?'<label class="rp-field"><span>Rutina</span><select id="vo-effective-routine">'+choices.map(function(x){return '<option value="'+x.id+'" '+(x.id===rid?"selected":"")+'>'+voEsc(x.name)+'</option>'}).join("")+'</select></label>':"");
  document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="vo-effective-bg"><div class="sheet vo-effective-sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">'+voEsc(a.traineeName)+'</div><h2>Prescripción efectiva</h2></div><button class="icon-btn" id="vo-close-effective">'+ic("x")+'</button></div>'+
- (choices.length>1?'<label class="rp-field"><span>Rutina</span><select id="vo-effective-routine">'+choices.map(function(x){return '<option value="'+x.id+'" '+(x.id===rid?"selected":"")+'>'+voEsc(x.name)+'</option>'}).join("")+'</select></label>':"")+
- '<div class="vo-effective-info">'+ic("git-merge")+' Plantilla v'+a.sourceVersion+' + '+voCountOverrides(a)+' campos personalizados</div>'+
+ weekSelect+
+ '<div class="vo-effective-info">'+ic("git-merge")+' '+(isProgram?'Programa S'+week+' · ':'')+'Plantilla v'+a.sourceVersion+' + '+voCountOverrides(a)+' campos personalizados</div>'+
  '<div class="vo-effective-days">'+(r.days||[]).map(function(d){return '<section><div class="vo-day-head"><strong>'+voEsc(d.name)+'</strong><span>'+d.exercises.length+' ejercicios</span></div>'+d.exercises.map(function(ex){const fs=voFields(ex);return '<article><div><strong>'+voEsc(ex.name)+'</strong><span>'+fs.series+' series · '+fs.repsMin+(fs.repsMax!==fs.repsMin?'–'+fs.repsMax:'')+' reps'+(fs.loadMode!=="none"?' · '+(fs.loadMode==="suggested"?'~':'')+fs.weight+' kg':'')+' · '+voEsc(fs.effortMode.toUpperCase())+' '+fs.effortTarget+' · '+fs.rest+' s</span></div>'+(ex.note?'<small>'+voEsc(ex.note)+'</small>':'')+'</article>'}).join("")+'</section>'}).join("")+'</div></div></div>';
  if(window.lucide)lucide.createIcons();document.getElementById("vo-close-effective").onclick=function(){voOpenDetail(a.id)};
  const sel=document.getElementById("vo-effective-routine");if(sel)sel.onchange=function(){voEffectivePreview(a.id,sel.value)};
+ const ws=document.getElementById("vo-effective-week");if(ws)ws.onchange=function(){voEffectivePreview(a.id,null,+ws.value)};
  document.getElementById("vo-effective-bg").onclick=function(ev){if(ev.target.id==="vo-effective-bg")voOpenDetail(a.id)}
 }
 function voAugmentDetail(id){
