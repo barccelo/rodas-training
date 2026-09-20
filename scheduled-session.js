@@ -109,14 +109,15 @@ function ssRevertActiveOccurrence(){
 function ssCompleteActive(){
  if(!activeContext)return;
  const a=ssAssignment(activeContext.assignmentId);if(!a)return;
- const actual={completedAt:new Date().toISOString(),elapsed:state.elapsed,exercises:ssClone(state.exercises),prescriptionSnapshot:ssClone(activeContext.snapshot)};
+ const resolvedStatus=doneSets()<totalSets()?"partial":"completed";
+ const actual={completedAt:new Date().toISOString(),elapsed:state.elapsed,exercises:ssClone(state.exercises),prescriptionSnapshot:ssClone(activeContext.snapshot),status:resolvedStatus};
  if(activeContext.mode==="fixed"){
   const s=(a.sessions||[]).find(function(x){return x.id===activeContext.scheduledSessionId});
-  if(s){s.status="completed";s.completedDate=ssToday();s.actualSnapshot=actual;(s.history||(s.history=[])).push({type:"completed",date:ssToday(),fromStartedSnapshot:true})}
+  if(s){s.status=resolvedStatus;s.completedDate=ssToday();s.actualSnapshot=actual;(s.history||(s.history=[])).push({type:resolvedStatus,date:ssToday(),fromStartedSnapshot:true})}
  }else{
   const step=activeContext.sequenceStep;
   if((a.sequenceStep||0)===step){
-   const snap=activeContext.snapshot;a.sequenceHistory=a.sequenceHistory||[];a.sequenceHistory.push({date:ssToday(),name:snap.name,week:snap.week,phase:snap.phase||"",status:"completed",actualSnapshot:actual});a.sequenceStep=step+1
+   const snap=activeContext.snapshot;a.sequenceHistory=a.sequenceHistory||[];a.sequenceHistory.push({date:ssToday(),name:snap.name,week:snap.week,phase:snap.phase||"",status:resolvedStatus,actualSnapshot:actual});a.sequenceStep=step+1
   }
   delete a.sequenceActive
  }
@@ -172,12 +173,12 @@ function ssReschedule(a,s){
 }
 function ssOpenOccurrence(a,occ){
  const day=ssBuildDay(a,occ),count=ssCountOverrides(a,occ),started=ssActiveMatches(a,occ)&&state.startedAt;
- const fixed=occ.mode==="fixed",s=fixed?occ.session:null,status=fixed?s.status:(a.sequenceActive&&a.sequenceActive.step===occ.step?"in-progress":"planned");
- document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="ss-occ-bg"><div class="sheet ss-occ-sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">'+ssEsc(a.traineeName)+'</div><h2>'+ssEsc(day?day.name:occ.name)+'</h2></div><button class="icon-btn" id="ss-close-occ">'+ic("x")+'</button></div><div class="ss-occ-meta"><span>'+ssEsc(fixed?s.date:"Secuencia flexible")+'</span><span>Semana '+(occ.week||1)+'</span>'+(occ.phase?'<span>'+ssEsc(occ.phase)+'</span>':'')+'<span>v'+a.sourceVersion+'</span></div><div class="ss-frozen '+(started?"active":"")+'">'+ic(started?"snowflake":"layers-3")+'<div><strong>'+(started?"Snapshot congelado":"Prescripción todavía editable")+'</strong><span>'+(started?"Las publicaciones posteriores no modificarán esta sesión iniciada.":"Se congelará exactamente al pulsar Entrenar ahora.")+'</span></div></div><div class="ss-occ-summary"><div><strong>'+(day&&day.exercises?day.exercises.length:0)+'</strong><span>Ejercicios</span></div><div><strong>'+count+'</strong><span>Cambios puntuales</span></div></div><div class="ss-main-actions"><button class="primary" id="ss-train-now">'+ic(started?"play":"play")+' '+(started?"Continuar":"Entrenar ahora")+'</button><button class="secondary" id="ss-edit-only" '+(started?'disabled':'')+'>'+ic("calendar-cog")+' Editar solo esta sesión</button></div>'+(fixed?'<div class="sheet-actions ss-secondary-actions"><button id="ss-reschedule" '+(started?'disabled':'')+'>'+ic("calendar-clock")+' Reprogramar</button><button id="ss-complete-manual" '+(started?'disabled':'')+'>'+ic("check-circle-2")+' Marcar completada</button><button id="ss-skip" '+(started?'disabled':'')+'>'+ic("skip-forward")+' Omitir</button></div>':'')+'</div></div>';
+ const fixed=occ.mode==="fixed",s=fixed?occ.session:null,status=fixed?s.status:(a.sequenceActive&&a.sequenceActive.step===occ.step?"in-progress":"planned"),terminal=fixed&&(s.status==="completed"||s.status==="partial"||s.status==="skipped");
+ document.getElementById("sheet-root").innerHTML='<div class="sheet-bg" id="ss-occ-bg"><div class="sheet ss-occ-sheet"><div class="handle"></div><div class="sheet-set-title"><div><div class="eyebrow">'+ssEsc(a.traineeName)+'</div><h2>'+ssEsc(day?day.name:occ.name)+'</h2></div><button class="icon-btn" id="ss-close-occ">'+ic("x")+'</button></div><div class="ss-occ-meta"><span>'+ssEsc(fixed?s.date:"Secuencia flexible")+'</span><span>Semana '+(occ.week||1)+'</span>'+(occ.phase?'<span>'+ssEsc(occ.phase)+'</span>':'')+'<span>v'+a.sourceVersion+'</span></div><div class="ss-frozen '+(started?"active":"")+'">'+ic(started?"snowflake":"layers-3")+'<div><strong>'+(started?"Snapshot congelado":"Prescripción todavía editable")+'</strong><span>'+(started?"Las publicaciones posteriores no modificarán esta sesión iniciada.":"Se congelará exactamente al pulsar Entrenar ahora.")+'</span></div></div><div class="ss-occ-summary"><div><strong>'+(day&&day.exercises?day.exercises.length:0)+'</strong><span>Ejercicios</span></div><div><strong>'+count+'</strong><span>Cambios puntuales</span></div></div><div class="ss-main-actions"><button class="primary" id="ss-train-now" '+(terminal&&!started?'disabled':'')+'>'+ic(started?"play":"play")+' '+(started?"Continuar":terminal?"Sesión resuelta":"Entrenar ahora")+'</button><button class="secondary" id="ss-edit-only" '+(started||terminal?'disabled':'')+'>'+ic("calendar-cog")+' Editar solo esta sesión</button></div>'+(fixed?'<div class="sheet-actions ss-secondary-actions"><button id="ss-reschedule" '+(started?'disabled':'')+'>'+ic("calendar-clock")+' Reprogramar</button><button id="ss-complete-manual" '+(started?'disabled':'')+'>'+ic("check-circle-2")+' Marcar completada</button><button id="ss-skip" '+(started?'disabled':'')+'>'+ic("skip-forward")+' Omitir</button></div>':'')+'</div></div>';
  if(window.lucide)lucide.createIcons();
  document.getElementById("ss-close-occ").onclick=function(){window.RodasAssignments.openDetail(a.id)};
  document.getElementById("ss-occ-bg").onclick=function(ev){if(ev.target.id==="ss-occ-bg")window.RodasAssignments.openDetail(a.id)};
- document.getElementById("ss-train-now").onclick=function(){ssStart(a,occ)};
+ document.getElementById("ss-train-now").onclick=function(){if(!terminal||started)ssStart(a,occ)};
  document.getElementById("ss-edit-only").onclick=function(){ssEditOccurrence(a,occ)};
  if(fixed){
   document.getElementById("ss-reschedule").onclick=function(){ssReschedule(a,s)};
