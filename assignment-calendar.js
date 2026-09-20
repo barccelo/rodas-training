@@ -36,6 +36,18 @@ function acProgramPhase(p,week){
 function acSource(a){return a.sourceType==="program"?acProgram(a.sourceId):acRoutine(a.sourceId)}
 function acSourceName(a){const s=acSource(a);return s?s.name:"Origen no disponible"}
 function acSourceVersion(type,obj){return Number(obj&&obj.version||0)}
+function acClone(v){return JSON.parse(JSON.stringify(v))}
+function acSnapshotSource(type,obj){
+ if(!obj)return null;
+ if(type==="routine"){
+  const days=acRoutineDays(obj).map(function(d){return {id:d.id,name:d.name,exercises:(d.exercises||[]).map(function(e){return {key:e._rbid||e.id||e.name,id:e.id,name:e.name,note:e.note||"",prescription:acClone(e.prescription||{}),sets:acClone(e.sets||[]),group:e.group||null,groupType:e.groupType||null,blockMeta:acClone(e.blockMeta||null)}}),blocks:acClone(d.blocks||[])}});
+  return {type:"routine",id:obj.id,name:obj.name,version:acSourceVersion(type,obj),days:days}
+ }
+ const routines={};
+ (obj.phases||[]).forEach(function(ph){const r=acRoutine(ph.routineId);if(r)routines[r.id]=acSnapshotSource("routine",r)});
+ return {type:"program",id:obj.id,name:obj.name,version:acSourceVersion(type,obj),duration:obj.duration,phases:acClone(obj.phases||[]),routines:routines}
+}
+function acEnsureSnapshot(a){if(!a.baseSnapshot){const src=acSource(a);a.baseSnapshot=acSnapshotSource(a.sourceType,src)}if(!a.overrides)a.overrides={};if(!a.versionHistory)a.versionHistory=[]}
 function acSequenceWorkout(a,step){
  step=Math.max(0,step==null?a.sequenceStep||0:step);
  if(a.sourceType==="routine"){
@@ -62,7 +74,7 @@ function acMaterialize(a){
 function acSeed(){
  if(assignments.length)return;
  const r=acRoutine("push-a");if(!r)return;
- const a={id:"assign-demo",sourceType:"routine",sourceId:r.id,sourceVersion:acSourceVersion("routine",r),traineeId:"carlos",traineeName:"Carlos Mendoza",startDate:acAddDays(acToday(),-5),endDate:null,mode:"fixed",frequency:3,weekdays:[0,2,4],status:"active",sequenceStep:0,sequenceHistory:[],createdAt:new Date().toISOString()};
+ const a={id:"assign-demo",sourceType:"routine",sourceId:r.id,sourceVersion:acSourceVersion("routine",r),traineeId:"carlos",traineeName:"Carlos Mendoza",startDate:acAddDays(acToday(),-5),endDate:null,mode:"fixed",frequency:3,weekdays:[0,2,4],status:"active",sequenceStep:0,sequenceHistory:[],overrides:{},versionHistory:[],baseSnapshot:acSnapshotSource("routine",r),createdAt:new Date().toISOString()};
  acMaterialize(a);assignments.push(a);acSave()
 }
 function acAssignmentsFor(type,id){return assignments.filter(function(a){return a.sourceType===type&&a.sourceId===id&&a.status!=="completed"})}
@@ -110,7 +122,7 @@ function acOpenAssign(type,id){
   const frequency=+freq.value,start=document.getElementById("ac-start").value||today,weekdays=Array.from(document.querySelectorAll("[data-ac-weekday].active")).map(function(b){return +b.dataset.acWeekday});
   if(mode.value==="fixed"&&!weekdays.length){alert("Selecciona al menos un día.");return}
   ids.forEach(function(tid,n){
-   const t=trainees.find(function(x){return x.id===tid}),a={id:"assign-"+Date.now()+"-"+n,sourceType:type,sourceId:id,sourceVersion:acSourceVersion(type,source),traineeId:t.id,traineeName:t.name,startDate:start,endDate:type==="program"?acAddDays(start,Math.max(7,(source.duration||1)*7)-1):null,mode:mode.value,frequency:frequency,weekdays:weekdays,status:start>today?"scheduled":"active",sequenceStep:0,sequenceHistory:[],sessions:[],createdAt:new Date().toISOString()};
+   const t=trainees.find(function(x){return x.id===tid}),a={id:"assign-"+Date.now()+"-"+n,sourceType:type,sourceId:id,sourceVersion:acSourceVersion(type,source),traineeId:t.id,traineeName:t.name,startDate:start,endDate:type==="program"?acAddDays(start,Math.max(7,(source.duration||1)*7)-1):null,mode:mode.value,frequency:frequency,weekdays:weekdays,status:start>today?"scheduled":"active",sequenceStep:0,sequenceHistory:[],sessions:[],overrides:{},versionHistory:[],baseSnapshot:acSnapshotSource(type,source),createdAt:new Date().toISOString()};
    acMaterialize(a);assignments.push(a)
   });
   acSave();clearRest();render()
@@ -195,7 +207,17 @@ function acOpenReschedule(a,s){
  document.getElementById("ac-save-reschedule").onclick=function(){const d=document.getElementById("ac-new-date").value;if(!d)return;(s.history||(s.history=[])).push({type:"rescheduled",from:s.date,to:d,date:acToday()});s.date=d;s.status="rescheduled";a.sessions.sort(function(x,y){return x.date.localeCompare(y.date)});acSave();acOpenDetail(a.id)}
 }
 
-acLoad();acSeed();
+acLoad();acSeed();assignments.forEach(acEnsureSnapshot);acSave();
+window.RodasAssignments={
+ getAssignments:function(){return assignments},
+ save:function(){acSave()},
+ getById:function(id){return assignments.find(function(a){return a.id===id})||null},
+ snapshotSource:function(type,obj){return acSnapshotSource(type,obj)},
+ source:function(a){return acSource(a)},
+ ensureSnapshot:function(a){acEnsureSnapshot(a)},
+ materialize:function(a){acMaterialize(a)},
+ openDetail:function(id){acOpenDetail(id)}
+};
 
 const acPrevRoutineDetailView=routineDetailView;
 routineDetailView=function(index){
