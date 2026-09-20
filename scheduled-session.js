@@ -13,8 +13,8 @@ function ssProgram(id){return ssPrograms().find(function(p){return p.id===id})||
 function ssExerciseKey(e){return e.key||e._rbid||e.id||e.name}
 function ssLoadContext(){try{const raw=localStorage.getItem(SS_KEY);if(raw)activeContext=JSON.parse(raw)}catch(e){}}
 function ssSaveContext(){try{if(activeContext)localStorage.setItem(SS_KEY,JSON.stringify(activeContext));else localStorage.removeItem(SS_KEY)}catch(e){}}
-function ssEffectiveRoutine(a,rid){
- if(window.RodasVersioning){const r=window.RodasVersioning.getEffectiveRoutine(a.id,rid);if(r)return r}
+function ssEffectiveRoutine(a,rid,context){
+ if(window.RodasVersioning){const r=window.RodasVersioning.getEffectiveRoutine(a.id,rid,context);if(r)return r}
  if(a.baseSnapshot){
   if(a.baseSnapshot.type==="routine"&&a.baseSnapshot.id===rid)return ssClone(a.baseSnapshot);
   if(a.baseSnapshot.routines&&a.baseSnapshot.routines[rid])return ssClone(a.baseSnapshot.routines[rid])
@@ -24,11 +24,11 @@ function ssEffectiveRoutine(a,rid){
 function ssSequenceInfo(a){
  const step=Math.max(0,a.sequenceStep||0),freq=Math.max(1,a.frequency||1);
  if(a.sourceType==="routine"){
-  const r=ssEffectiveRoutine(a,a.sourceId),days=r&&r.days&&r.days.length?r.days:[];
-  return {step:step,week:Math.floor(step/freq)+1,phase:"",routineId:a.sourceId,dayIndex:days.length?step%days.length:0,name:days.length?days[step%days.length].name:"Entrenamiento"}
+  const week=Math.floor(step/freq)+1,r=ssEffectiveRoutine(a,a.sourceId,{week:week,phase:""}),days=r&&r.days&&r.days.length?r.days:[];
+  return {step:step,week:week,phase:"",routineId:a.sourceId,dayIndex:days.length?step%days.length:0,name:days.length?days[step%days.length].name:"Entrenamiento"}
  }
- const p=ssProgram(a.sourceId),week=Math.floor(step/freq)+1,ph=p&&p.phases?(p.phases.find(function(x){return week>=x.from&&week<=x.to})||p.phases[p.phases.length-1]):null;
- const rid=ph?ph.routineId:null,r=rid?ssEffectiveRoutine(a,rid):null,days=r&&r.days&&r.days.length?r.days:[];
+ const p=a.baseSnapshot&&a.baseSnapshot.type==="program"?a.baseSnapshot:ssProgram(a.sourceId),week=Math.floor(step/freq)+1,ph=p&&p.phases?(p.phases.find(function(x){return week>=x.from&&week<=x.to})||p.phases[p.phases.length-1]):null;
+ const rid=ph?ph.routineId:null,r=rid?ssEffectiveRoutine(a,rid,{week:week,phase:ph?ph.name:""}):null,days=r&&r.days&&r.days.length?r.days:[];
  return {step:step,week:week,phase:ph?ph.name:"",routineId:rid,dayIndex:days.length?step%days.length:0,name:days.length?days[step%days.length].name:"Entrenamiento"}
 }
 function ssOverridesFor(a,occ){
@@ -61,7 +61,7 @@ function ssApplyField(ex,field,value){
  })
 }
 function ssBuildDay(a,occ){
- const r=ssEffectiveRoutine(a,occ.routineId);if(!r)return null;
+ const r=ssEffectiveRoutine(a,occ.routineId,{week:occ.week||1,phase:occ.phase||""});if(!r)return null;
  const day=ssClone((r.days||[])[occ.dayIndex]||(r.days||[])[0]);if(!day)return null;
  const overrides=ssOverridesFor(a,occ);
  (day.exercises||[]).forEach(function(ex){const node=overrides[ssExerciseKey(ex)]||{};Object.keys(node).forEach(function(f){ssApplyField(ex,f,node[f])})});
