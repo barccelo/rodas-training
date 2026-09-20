@@ -65,6 +65,7 @@ function ssBuildDay(a,occ){
  const day=ssClone((r.days||[])[occ.dayIndex]||(r.days||[])[0]);if(!day)return null;
  const overrides=ssOverridesFor(a,occ);
  (day.exercises||[]).forEach(function(ex){const node=overrides[ssExerciseKey(ex)]||{};Object.keys(node).forEach(function(f){ssApplyField(ex,f,node[f])})});
+ if(window.RodasSpecialCases&&window.RodasSpecialCases.applyOccurrenceSubstitutions)window.RodasSpecialCases.applyOccurrenceSubstitutions(a,day,occ);
  return day
 }
 function ssCountOverrides(a,occ){const root=ssOverridesFor(a,occ);return Object.keys(root).reduce(function(n,k){return n+Object.keys(root[k]||{}).length},0)}
@@ -228,6 +229,14 @@ events=function(){
  document.querySelectorAll("[data-ac-open]").forEach(function(b){const old=b.onclick;b.onclick=function(){if(old)old();ssAugmentDetail(b.dataset.acOpen)}})
 };
 
-window.RodasScheduledSessions={openFixedSession:ssOpenFixedSession,augmentDetail:ssAugmentDetail,getActiveContext:function(){return activeContext},buildDay:function(assignmentId,sessionId){const a=ssAssignment(assignmentId);if(!a)return null;const s=(a.sessions||[]).find(function(x){return x.id===sessionId});return s?ssBuildDay(a,ssOccurrenceFromFixed(s)):null}};
+window.RodasScheduledSessions={
+ openFixedSession:ssOpenFixedSession,
+ augmentDetail:ssAugmentDetail,
+ getActiveContext:function(){return activeContext},
+ getSequenceOccurrence:function(assignmentId){const a=ssAssignment(assignmentId);return a?ssOccurrenceFromSequence(a):null},
+ openOccurrence:function(assignmentId,occ){const a=ssAssignment(assignmentId);if(a&&occ)ssOpenOccurrence(a,occ)},
+ buildOccurrence:function(assignmentId,occ){const a=ssAssignment(assignmentId);return a&&occ?ssBuildDay(a,occ):null},
+ buildDay:function(assignmentId,sessionId){const a=ssAssignment(assignmentId);if(!a)return null;const s=(a.sessions||[]).find(function(x){return x.id===sessionId});return s?ssBuildDay(a,ssOccurrenceFromFixed(s)):null}
+};
 render();
 })();
