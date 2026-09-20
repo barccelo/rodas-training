@@ -25,3 +25,6 @@
 .ac-resume-summary{display:flex;align-items:center;gap:7px;margin-top:8px;padding:10px 11px;border-radius:11px;background:var(--surface-2);font-size:9px;color:var(--secondary)}.ac-resume-summary svg{width:14px;color:var(--accent)}
 .ac-resume-options{display:grid;gap:7px;margin-top:10px}.ac-resume-options button{border:0;border-radius:12px;background:var(--soft);color:var(--text);text-align:left;padding:12px;display:flex;flex-direction:column;gap:4px}.ac-resume-options strong{font-size:11px}.ac-resume-options span{font-size:9px;color:var(--secondary);line-height:1.35}
 .ac-sequence-actions button:disabled{opacity:.42}
+
+.ac-session.partial .ac-session-status{color:var(--warning)}
+.ac-sequence-history>div>span.partial{color:var(--warning)}
